@@ -32,8 +32,9 @@ class CategoryResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
+                    ->columnSpanFull()
                     ->required(),
-                Forms\Components\Textarea::make('description')
+                Forms\Components\RichEditor::make('description')
                     ->columnSpanFull(),
                 Forms\Components\Toggle::make('active')
                     ->default(true)
@@ -48,7 +49,8 @@ class CategoryResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('description'),
+                Tables\Columns\TextColumn::make('description')
+                    ->html(),
 
                 Tables\Columns\IconColumn::make('active')
                     ->sortable()

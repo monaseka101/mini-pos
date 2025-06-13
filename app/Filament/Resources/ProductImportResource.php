@@ -93,6 +93,9 @@ class ProductImportResource extends Resource
                     ->getStateUsing(fn(ProductImport $record) => $record->totalPrice())
                     ->sortable()
                     ->weight(FontWeight::Bold),
+                Tables\Columns\TextColumn::make('note')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->html(),
 
                 Tables\Columns\TextColumn::make('import_date')
                     ->date('d/m/Y')

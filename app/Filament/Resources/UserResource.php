@@ -14,6 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Log;
 
@@ -100,9 +101,18 @@ class UserResource extends Resource
                     ->icon('heroicon-m-pencil-square')
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                Tables\Actions\BulkAction::make('activate')
+                    ->requiresConfirmation()
+                    ->label('Activate Selected')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+                Tables\Actions\BulkAction::make('deactivate')
+                    ->requiresConfirmation()
+                    ->label('Deactivate Selected')
+                    ->icon('heroicon-m-x-circle')
+                    ->color('danger')
+                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ])
             ->defaultSort('active', 'desc');
     }

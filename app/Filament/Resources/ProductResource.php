@@ -125,7 +125,7 @@ class ProductResource extends Resource
                             ->disk('public')
                             ->visibility('public')
                             ->maxSize(2048) // 2MB
-                            ->helperText('Upload a f-quality product image (max 2MB, JPG/PNG/WebP)')
+                            ->helperText('Upload a high quality product image (max 2MB, JPG/PNG/WebP)')
                             ->columnSpanFull(),
                     ]),
                 Forms\Components\Toggle::make('active')
@@ -140,11 +140,12 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('image')
+                    ->size(60)
+                    ->defaultImageUrl(fn($record) => Util::getDefaultAvatar($record->name)),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\ImageColumn::make('image')
-                    ->defaultImageUrl(fn($record) => Util::getDefaultAvatar($record->name)),
                 Tables\Columns\TextColumn::make('price')
                     ->money()
                     ->sortable(),
@@ -207,7 +208,6 @@ class ProductResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\BulkAction::make('activate')
                         ->label('Activate Selected')
                         ->icon('heroicon-m-check-circle')
@@ -234,139 +234,86 @@ class ProductResource extends Resource
     {
         return $infolist
             ->schema([
-                Split::make([
-                    // Left Column - Main Product Info
-                    InfoSection::make('Product Overview')
-                        ->icon('heroicon-m-cube')
-                        ->schema([
-                            InfoGrid::make(3)
+                InfoSection::make('Product Details')
+                    ->icon('heroicon-m-cube')
+                    ->schema([
+                        Split::make([
+                            ImageEntry::make('image')
+                                ->defaultImageUrl(fn(Product $record) => Util::getDefaultAvatar($record->name))
+                                ->label('Product Image')
+                                ->height(250)
+                                ->width(250)
+                                ->extraImgAttributes(['class' => 'rounded-xl shadow-lg']),
+
+                            InfoGrid::make(1)
                                 ->schema([
-                                    ImageEntry::make('image')
-                                        ->label('Product Image')
-                                        ->height(150)
-                                        ->width(150)
-                                        ->defaultImageUrl(url('/images/placeholder-product.png'))
-                                        ->columnSpan(1)
-                                        ->extraImgAttributes(['class' => 'rounded-lg shadow-sm']),
-
-                                    InfoGrid::make(1)
-                                        ->schema([
-                                            TextEntry::make('name')
-                                                ->label('Product Name')
-                                                ->size(TextEntry\TextEntrySize::Large)
-                                                ->weight(FontWeight::Bold)
-                                                ->copyable()
-                                                ->copyMessage('Product name copied')
-                                                ->copyMessageDuration(1500),
-
-                                            TextEntry::make('description')
-                                                ->label('Description')
-                                                ->html()
-                                                ->placeholder('No description provided')
-                                                ->limit(200)
-                                                ->tooltip(fn($state) => strlen($state) > 200 ? $state : null),
-                                        ])
-                                        ->columnSpan(2),
-                                ]),
-                        ]),
-
-                    // Right Column - Quick Stats
-                    InfoSection::make('Quick Stats')
-                        ->icon('heroicon-m-chart-bar')
-                        ->schema([
-                            InfoGrid::make(2)
-                                ->schema([
-                                    TextEntry::make('price')
-                                        ->label('Price')
-                                        ->money('USD')
+                                    TextEntry::make('name')
+                                        ->label('Product Name')
                                         ->size(TextEntry\TextEntrySize::Large)
                                         ->weight(FontWeight::Bold)
-                                        ->color('success')
-                                        ->icon('heroicon-m-currency-dollar'),
+                                        ->copyable(),
 
-                                    TextEntry::make('stock')
-                                        ->label('Stock Level')
-                                        ->numeric()
-                                        ->badge()
-                                        ->color(fn($state) => match (true) {
-                                            $state === 0 => 'danger',
-                                            $state <= 10 => 'warning',
-                                            default => 'success',
-                                        })
-                                        ->formatStateUsing(fn($state) => $state . ' units')
-                                        ->icon(fn($state) => match (true) {
-                                            $state === 0 => 'heroicon-m-x-circle',
-                                            $state <= 10 => 'heroicon-m-exclamation-triangle',
-                                            default => 'heroicon-m-check-circle',
-                                        }),
+                                    TextEntry::make('description')
+                                        ->label('Description')
+                                        ->html()
+                                        ->columnSpanFull(),
 
-                                    IconEntry::make('active')
-                                        ->label('Status')
-                                        ->boolean()
-                                        ->trueIcon('heroicon-o-check-badge')
-                                        ->falseIcon('heroicon-o-x-circle')
-                                        ->trueColor('success')
-                                        ->falseColor('danger')
-                                        ->columnSpan(2),
+                                    InfoGrid::make(3)
+                                        ->schema([
+                                            TextEntry::make('price')
+                                                ->label('Price')
+                                                ->money('USD')
+                                                ->size(TextEntry\TextEntrySize::Large)
+                                                ->color('success'),
+
+                                            TextEntry::make('stock')
+                                                ->label('Stock')
+                                                ->badge()
+                                                ->color(fn($state) => match (true) {
+                                                    $state === 0 => 'danger',
+                                                    $state <= 10 => 'warning',
+                                                    default => 'success',
+                                                }),
+
+                                            IconEntry::make('active')
+                                                ->label('Status')
+                                                ->boolean()
+                                                ->trueColor('success')
+                                                ->falseColor('danger'),
+                                        ]),
                                 ]),
-                        ]),
-                ])
-                    ->from('lg')
-                    ->columnSpan('full'),
+                        ])->from('md'),
+                    ]),
 
-                // Categories and Brand Section
-                InfoSection::make('Classification')
-                    ->icon('heroicon-m-tag')
+                InfoSection::make('Additional Information')
+                    ->icon('heroicon-m-information-circle')
                     ->schema([
-                        InfoGrid::make(2)
+                        InfoGrid::make(4)
                             ->schema([
                                 TextEntry::make('category.name')
                                     ->label('Category')
                                     ->badge()
-                                    ->color('info')
-                                    ->icon('heroicon-m-folder')
-                                    ->placeholder('Uncategorized'),
+                                    ->color('info'),
 
                                 TextEntry::make('brand.name')
                                     ->label('Brand')
                                     ->badge()
-                                    ->icon('heroicon-m-building-office')
-                                    ->placeholder('No brand assigned'),
-                            ]),
-                    ])
-                    ->columns(2),
-
-                // Management Information Section
-                InfoSection::make('Management Information')
-                    ->icon('heroicon-m-users')
-                    ->schema([
-                        InfoGrid::make(3)
-                            ->schema([
-                                TextEntry::make('user.name')
-                                    ->label('Created By')
-                                    ->badge()
-                                    ->color('primary')
-                                    ->icon('heroicon-m-user')
-                                    ->placeholder('System'),
+                                    ->color('primary'),
 
                                 TextEntry::make('created_at')
-                                    ->label('Created At')
-                                    ->dateTime('M j, Y \a\t g:i A')
-                                    ->icon('heroicon-m-calendar-days')
+                                    ->label('Created')
+                                    ->dateTime('d/m/Y h:m:s')
                                     ->tooltip(fn($state) => $state->diffForHumans()),
 
-                                TextEntry::make('updated_at')
-                                    ->label('Last Updated')
-                                    ->dateTime('M j, Y \a\t g:i A')
-                                    ->icon('heroicon-m-clock')
-                                    ->tooltip(fn($state) => $state->diffForHumans())
-                                    ->color('warning'),
+                                TextEntry::make('user.name')
+                                    ->label('Created By')
+                                    ->badge(),
                             ]),
                     ])
-                    ->collapsible()
-                    ->collapsed(),
+                    ->collapsible(),
             ]);
     }
+
 
     public static function getRelations(): array
     {

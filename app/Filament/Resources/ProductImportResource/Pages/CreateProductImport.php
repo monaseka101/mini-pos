@@ -6,6 +6,7 @@ use App\Filament\Resources\ProductImportResource;
 use App\Models\Product;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\Log;
 
 class CreateProductImport extends CreateRecord
 {
@@ -19,10 +20,11 @@ class CreateProductImport extends CreateRecord
 
     protected function afterCreate()
     {
+        Log::info($this->record->items);
         $items = $this->record->items;
-        // Iterate over items
+        // // Iterate over items
         foreach ($items as $item) {
-            $product = Product::find($item->id);
+            $product = Product::find($item->product_id);
             if ($product) {
                 $product->increment('stock', $item->qty);
             }

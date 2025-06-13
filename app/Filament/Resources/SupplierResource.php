@@ -88,9 +88,6 @@ class SupplierResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                ]),
-                Tables\Actions\DeleteBulkAction::make(),
                 Tables\Actions\BulkAction::make('activate')
                     ->label('Activate Selected')
                     ->icon('heroicon-m-check-circle')

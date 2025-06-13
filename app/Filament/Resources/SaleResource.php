@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Log;
 class SaleResource extends Resource
 {
     protected static ?string $model = Sale::class;
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+    protected static ?string $navigationIcon = 'heroicon-m-shopping-cart';
     protected static ?string $navigationLabel = 'Sales';
     protected static ?string $modelLabel = 'Sale';
     protected static ?string $pluralModelLabel = 'Sales';

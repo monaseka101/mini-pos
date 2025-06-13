@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Parfaitementweb\FilamentCountryField\Forms\Components\Country;
 
 class DatabaseSeeder extends Seeder
 {
@@ -38,7 +39,7 @@ class DatabaseSeeder extends Seeder
             Brand::create([
                 'name' => $brand,
                 'active' => fake()->boolean(),
-                'website' => "https://{$website}.com"
+                'website' => "https://{$website}.com",
             ]);
         }
 
