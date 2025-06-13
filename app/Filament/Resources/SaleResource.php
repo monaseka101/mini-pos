@@ -164,7 +164,6 @@ class SaleResource extends Resource
                     //     'md' => 2,
                     // ])
                     ->searchable(),
-
                 Forms\Components\TextInput::make('qty')
                     ->label('Quantity')
                     ->numeric()
@@ -300,7 +299,14 @@ class SaleResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customer.name')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->url(
+                        fn($record) => CustomerResource::getUrl('customer.view', ['record' => $record->customer_id]),
+                        shouldOpenInNewTab: true
+                    ),
+                Tables\Columns\TextColumn::make('note')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->html(),
 
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')

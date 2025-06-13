@@ -6,10 +6,13 @@ use App\Filament\Resources\ProductImportResource\Pages;
 use App\Filament\Resources\ProductImportResource\RelationManagers;
 use App\Models\Product;
 use App\Models\ProductImport;
+use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
@@ -87,6 +90,7 @@ class ProductImportResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('supplier.name')
+                    ->url(fn($record) => SupplierResource::getUrl('supplier.view', ['record' => $record->supplier_id]), true)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')
@@ -121,7 +125,9 @@ class ProductImportResource extends Resource
                     ->multiple()
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -269,12 +269,14 @@ class ProductResource extends Resource
                                             TextEntry::make('stock')
                                                 ->label('Stock')
                                                 ->badge()
-                                                ->color(fn($state) => match (true) {
-                                                    $state === 0 => 'danger',
-                                                    $state <= 10 => 'warning',
-                                                    default => 'success',
-                                                }),
-
+                                                ->color(
+                                                    fn($record) =>
+                                                    $record->stock <= 0 ? 'danger' : ($record->stock <= $record->stock_security ? 'warning' : 'success')
+                                                )
+                                                ->icon(
+                                                    fn($record) =>
+                                                    $record->stock <= 0 ? 'heroicon-m-x-circle' : ($record->stock <= $record->stock_security ? 'heroicon-m-exclamation-triangle' : 'heroicon-m-check-circle')
+                                                ),
                                             IconEntry::make('active')
                                                 ->label('Status')
                                                 ->boolean()

@@ -10,4 +10,10 @@ class EditSupplier extends EditRecord
 {
     protected static string $resource = SupplierResource::class;
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\ViewAction::make(),
+        ];
+    }
 }

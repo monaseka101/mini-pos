@@ -10,6 +10,7 @@ use App\Models\Brand;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -113,6 +114,7 @@ class BrandResource extends Resource
                     ->falseLabel('Inactive Brand')
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -128,6 +130,80 @@ class BrandResource extends Resource
                     ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ])
             ->defaultSort('active', 'desc');
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('Brand Information')
+                    ->description('Basic brand details and identity')
+                    ->icon('heroicon-m-bookmark-square')
+                    ->schema([
+                        \Filament\Infolists\Components\Grid::make(2)
+                            ->schema([
+                                \Filament\Infolists\Components\TextEntry::make('name')
+                                    ->label('Brand Name')
+                                    ->icon('heroicon-m-tag')
+                                    ->weight(\Filament\Support\Enums\FontWeight::Bold)
+                                    ->size(\Filament\Infolists\Components\TextEntry\TextEntrySize::Large),
+
+                                \Filament\Infolists\Components\TextEntry::make('made_in')
+                                    ->label('Made In')
+                                    ->icon('heroicon-m-globe-americas')
+                                    ->badge()
+                                    ->color('info'),
+                            ]),
+
+                        \Filament\Infolists\Components\TextEntry::make('website')
+                            ->label('Official Website')
+                            ->icon('heroicon-m-link')
+                            ->url(fn ($state) => $state)
+                            ->openUrlInNewTab()
+                            ->copyable()
+                            ->copyMessage('Website URL copied!')
+                            ->copyMessageDuration(1500),
+                    ]),
+
+                \Filament\Infolists\Components\Section::make('Brand Media')
+                    ->description('Brand logo and visual identity')
+                    ->icon('heroicon-m-photo')
+                    ->schema([
+                        \Filament\Infolists\Components\ImageEntry::make('logo')
+                            ->label('Brand Logo')
+                            ->defaultImageUrl(fn($record) => Util::getDefaultAvatar($record->name))
+                            ->size(200)
+                    ]),
+
+                \Filament\Infolists\Components\Section::make('Status & Statistics')
+                    ->description('Brand activity information')
+                    ->icon('heroicon-m-chart-bar')
+                    ->schema([
+                        \Filament\Infolists\Components\Grid::make(3)
+                            ->schema([
+                                \Filament\Infolists\Components\TextEntry::make('active')
+                                    ->label('Status')
+                                    ->badge()
+                                    ->formatStateUsing(fn(bool $state): string => $state ? 'Active Brand' : 'Inactive Brand')
+                                    ->color(fn(bool $state): string => $state ? 'success' : 'danger')
+                                    ->icon(fn(bool $state): string => $state ? 'heroicon-m-check-circle' : 'heroicon-m-x-circle'),
+
+                                \Filament\Infolists\Components\TextEntry::make('products_count')
+                                    ->label('Total Products')
+                                    ->state(fn ($record) => $record->products()->count())
+                                    ->badge()
+                                    ->color('info')
+                                    ->icon('heroicon-m-squares-2x2'),
+
+                                \Filament\Infolists\Components\TextEntry::make('created_at')
+                                    ->label('Create At')
+                                    ->dateTime('d/M/Y')
+                                    ->badge()
+                                    ->color('gray')
+                                    ->icon('heroicon-m-calendar'),
+                            ]),
+                    ]),
+            ]);
     }
 
     public static function getRelations(): array

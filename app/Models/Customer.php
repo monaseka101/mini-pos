@@ -18,4 +18,9 @@ class Customer extends Model
             // 'date_of_birth' => 'date:d-m-Y'
         ];
     }
+
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
 }
