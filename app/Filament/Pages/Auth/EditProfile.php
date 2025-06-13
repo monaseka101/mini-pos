@@ -86,6 +86,7 @@ class EditProfile extends BaseEditProfile
                     ->prefixIcon('heroicon-m-lock-closed')
                     ->helperText('Required only when changing password')
                     ->requiredWith('password')
+                    // checked is the current input password matches the authenticated user's password
                     ->currentPassword()
                     ->columnSpanFull(),
 

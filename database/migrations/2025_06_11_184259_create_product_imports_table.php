@@ -13,9 +13,10 @@ return new class extends Migration
     {
         Schema::create('product_imports', function (Blueprint $table) {
             $table->id();
-            $table->dateTime('import_date');
+            $table->date('import_date');
+            $table->text('note')->nullable();
             $table->foreignId('supplier_id')->nullOnDelete();
-            $table->foreignId('imported_by')->nullOnDelete();
+            $table->foreignId('user_id')->nullOnDelete();
             $table->timestamps();
         });
     }

@@ -13,7 +13,11 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Log;
+use Parfaitementweb\FilamentCountryField\Forms\Components\Country;
+use Parfaitementweb\FilamentCountryField\Tables\Columns\CountryColumn;
 
 class BrandResource extends Resource
 {
@@ -27,6 +31,7 @@ class BrandResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+
     public static function form(Form $form): Form
     {
         return $form
@@ -34,12 +39,18 @@ class BrandResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->maxLength(255)
                     ->required(),
-                Forms\Components\TextInput::make('made_in')
-                    ->label('Made In')
-                    ->maxLength(255)
-                    ->required(),
+
+                Country::make('made_in')
+                    ->exclude(['USA'])
+                    ->searchable()
+                    ->label('Made In'),
+                // Forms\Components\TextInput::make('made_in')
+                //     ->label('Made In')
+                //     ->maxLength(255)
+                //     ->required(),
                 Forms\Components\TextInput::make('website')
                     ->label('Official website')
+                    ->unique(ignoreRecord: true)
                     ->url()
                     ->maxLength(255)
                     ->placeholder('https://brand.com')
@@ -71,17 +82,18 @@ class BrandResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
-                    Tables\Columns\ImageColumn::make('logo')
+                Tables\Columns\ImageColumn::make('logo')
                     ->defaultImageUrl(fn(Brand $record) => Util::getDefaultAvatar($record->name)),
-                    Tables\Columns\TextColumn::make('website')
+                Tables\Columns\TextColumn::make('website')
                     ->searchable()
                     ->url(fn($state) => $state)
                     // ->color('primary')
                     ->openUrlInNewTab(),
-            Tables\Columns\TextColumn::make('made_in')
-                ->sortable()
-                ->searchable(),
-                    Tables\Columns\IconColumn::make('active')
+                Tables\Columns\TextColumn::make('made_in')
+                    ->badge()
+                    ->sortable()
+                    ->searchable(),
+                Tables\Columns\IconColumn::make('active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
@@ -105,6 +117,16 @@ class BrandResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('activate')
+                        ->label('Activate Selected')
+                        ->icon('heroicon-m-check-circle')
+                        ->color('success')
+                        ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+                    Tables\Actions\BulkAction::make('deactivate')
+                        ->label('Deactivate Selected')
+                        ->icon('heroicon-m-x-circle')
+                        ->color('danger')
+                        ->action(fn(Collection $records) => $records->each->update(['active' => false])),
                 ]),
             ])
             ->defaultSort('active', 'desc');

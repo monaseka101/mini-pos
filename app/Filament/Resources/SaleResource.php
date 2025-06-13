@@ -124,9 +124,11 @@ class SaleResource extends Resource
                 ]),
 
             Forms\Components\DatePicker::make('sale_date')
-                ->default(now())
-                ->date(),
-
+                // ->date()
+                // ->displayFormat(function () {
+                //     return 'd/m/Y';
+                // })
+                ->default(now()),
 
             Forms\Components\RichEditor::make('note')
                 ->columnSpan('full'),
@@ -146,9 +148,9 @@ class SaleResource extends Resource
                     ->relationship('product', 'name', fn($query) => $query->where('active', true))
                     ->preload()
                     ->required()
-                    ->reactive()
+                    // ->reactive()
                     ->afterStateUpdated(
-                        function ($state, Forms\Set $set) {
+                        function ($state, Forms\Set $set, Forms\Get $get) {
                             $product = Product::find($state);
                             if ($product) {
                                 $set('unit_price', $product->price ?? 0);
@@ -158,9 +160,9 @@ class SaleResource extends Resource
                     )
                     ->distinct()
                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
-                    ->columnSpan([
-                        'md' => 2,
-                    ])
+                    // ->columnSpan([
+                    //     'md' => 2,
+                    // ])
                     ->searchable(),
 
                 Forms\Components\TextInput::make('qty')
@@ -168,35 +170,34 @@ class SaleResource extends Resource
                     ->numeric()
                     ->default(1)
                     ->minValue(1)
-                    ->columnSpan([
-                        'md' => 2,
+                    ->maxValue(fn(Get $get) => $get('available_stock'))
+                    ->validationMessages([
+                        'max' => 'The product in stock have only :max.',
                     ])
+                    // ->columnSpan([
+                    //     'md' => 2,
+                    // ])
                     ->required(),
 
                 Forms\Components\TextInput::make('available_stock')
                     ->label('In Stock')
                     ->disabled()
-                    ->dehydrated(false) // Don't save this field
-                    ->columnSpan([
-                        'md' => 2,
-                    ]),
+                    ->dehydrated(false),
+                // ->columnSpan([
+                //     'md' => 2,
+                // ]),
 
                 Forms\Components\TextInput::make('unit_price')
                     ->label('Unit Price')
                     ->disabled()
                     ->dehydrated()
                     ->prefix('$')
-                    ->required()
-                    ->columnSpan([
-                        'md' => 3,
-                    ]),
+                    ->required(),
             ])
             ->orderColumn('')
             ->defaultItems(1)
             ->hiddenLabel()
-            ->columns([
-                'md' => 10,
-            ])
+            ->columns(4)
             ->required();
     }
 

@@ -34,11 +34,11 @@ class DatabaseSeeder extends Seeder
         $brands = ['Apple', 'Dell', 'Asus', 'Lenovo'];
 
         foreach ($brands as $brand) {
-            $brand = strtolower($brand);
+            $website = strtolower($brand);
             Brand::create([
                 'name' => $brand,
                 'active' => fake()->boolean(),
-                'website' => "https://{$brand}.com"
+                'website' => "https://{$website}.com"
             ]);
         }
 

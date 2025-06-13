@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SupplierResource extends Resource
@@ -59,7 +60,11 @@ class SupplierResource extends Resource
                 Tables\Columns\TextColumn::make('bank_name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('account_number')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->formatStateUsing(fn(string $state): string =>
+                    implode(' ', str_split($state, 4))),
+
                 Tables\Columns\IconColumn::make('active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -84,8 +89,18 @@ class SupplierResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
+                Tables\Actions\DeleteBulkAction::make(),
+                Tables\Actions\BulkAction::make('activate')
+                    ->label('Activate Selected')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+                Tables\Actions\BulkAction::make('deactivate')
+                    ->label('Deactivate Selected')
+                    ->icon('heroicon-m-x-circle')
+                    ->color('danger')
+                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ])
             ->defaultSort('active', 'desc');
     }

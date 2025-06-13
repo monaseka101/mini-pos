@@ -73,6 +73,7 @@ class ProductResource extends Resource
                                     ->exists(table: Category::class, column: 'id')
                                     ->createOptionForm([
                                         Forms\Components\TextInput::make('name')
+                                            ->unique()
                                             ->required()
                                             ->maxLength(255),
                                     ])
@@ -88,6 +89,7 @@ class ProductResource extends Resource
                                     ->createOptionForm([
                                         Forms\Components\TextInput::make('name')
                                             ->required()
+                                            ->unique()
                                             ->maxLength(255),
                                     ])
                                     ->placeholder('Select or create brand'),
@@ -162,7 +164,7 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('brand.name')
                     ->label('Brand')
                     ->badge()
-                    ->color(color: 'gray'),
+                    ->color(color: 'primary'),
                 Tables\Columns\TextColumn::make('category.name')
                     ->badge()
                     ->color('info'),
@@ -200,8 +202,8 @@ class ProductResource extends Resource
                     ->falseLabel('Inactive Products')
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -328,7 +330,6 @@ class ProductResource extends Resource
                                 TextEntry::make('brand.name')
                                     ->label('Brand')
                                     ->badge()
-                                    ->color('gray')
                                     ->icon('heroicon-m-building-office')
                                     ->placeholder('No brand assigned'),
                             ]),

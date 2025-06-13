@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CustomerResource extends Resource
@@ -67,11 +68,7 @@ class CustomerResource extends Resource
                     ->badge(),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('date_of_birth')
-                    ->label('Date of Birth')
-                    ->date('d/m/Y')
-                    ->dateTooltip('d/M/Y')
-                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('address')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -79,12 +76,19 @@ class CustomerResource extends Resource
                     ->dateTooltip('d/M/Y h:m:s')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('date_of_birth')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label('Date of Birth')
+                    ->date('d/m/Y')
+                    ->dateTooltip('d/M/Y')
+                    ->sortable(),
                 Tables\Columns\IconColumn::make('active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('gender')
@@ -96,6 +100,16 @@ class CustomerResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('activate')
+                        ->label('Activate Selected')
+                        ->icon('heroicon-m-check-circle')
+                        ->color('success')
+                        ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+                    Tables\Actions\BulkAction::make('deactivate')
+                        ->label('Deactivate Selected')
+                        ->icon('heroicon-m-x-circle')
+                        ->color('danger')
+                        ->action(fn(Collection $records) => $records->each->update(['active' => false])),
                 ]),
             ]);
     }

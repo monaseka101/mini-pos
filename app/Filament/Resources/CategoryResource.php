@@ -30,6 +30,7 @@ class CategoryResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->unique(ignoreRecord: true)
                     ->maxLength(255)
                     ->required(),
                 Forms\Components\Textarea::make('description')
@@ -47,7 +48,10 @@ class CategoryResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('description'),
+
                 Tables\Columns\IconColumn::make('active')
+                    ->sortable()
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

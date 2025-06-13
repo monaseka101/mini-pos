@@ -23,6 +23,7 @@ class Sale extends Model
         return collect($this->items)->reduce(fn($totalQty, $item) => $totalQty + $item->qty, 0);
     }
 
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

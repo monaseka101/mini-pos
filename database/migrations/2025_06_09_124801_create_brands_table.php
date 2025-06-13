@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('logo')->nullable();
-            $table->string('website')->nullable();
+            $table->string('website')->nullable()->unique();
             $table->string('made_in')->nullable();
             $table->boolean('active')->default(true);
             $table->timestamps();
