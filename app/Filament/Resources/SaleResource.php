@@ -12,21 +12,22 @@ use Filament\Resources\Resource;
 use App\Filament\Resources\SaleResource\Pages;
 use App\Helpers\Util;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
+use Filament\Infolists\Components\Grid;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Placeholder;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\Split;
+use Filament\Support\Enums\FontWeight;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Infolists\Components\ImageEntry;
+use Filament\Infolists\Infolist;
 use Illuminate\Support\Facades\Log;
 
 class SaleResource extends Resource
@@ -296,6 +297,8 @@ class SaleResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customer.name')
                     ->searchable()
@@ -326,39 +329,32 @@ class SaleResource extends Resource
                     ->toggleable(),
             ])
             ->filters([
-                // Tables\Filters\TrashedFilter::make(),
-
-                // Tables\Filters\Filter::make('created_at')
+                Tables\Filters\SelectFilter::make('customer')
+                    ->preload()
+                    ->searchable()
+                    ->multiple()
+                    ->relationship('customer', 'name'),
+                // Tables\Filters\Filter::make('sale_date')
                 //     ->form([
-                //         Forms\Components\DatePicker::make('created_from')
-                //             ->placeholder(fn ($state): string => 'Dec 18, ' . now()->subYear()->format('Y')),
-                //         Forms\Components\DatePicker::make('created_until')
-                //             ->placeholder(fn ($state): string => now()->format('M d, Y')),
+                //         DatePicker::make('from')
+                //             ->label('From Date'),
+                //         DatePicker::make('until')
+                //             ->label('Until Date'),
                 //     ])
                 //     ->query(function (Builder $query, array $data): Builder {
                 //         return $query
                 //             ->when(
-                //                 $data['created_from'] ?? null,
-                //                 fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                //                 $data['from'],
+                //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
                 //             )
                 //             ->when(
-                //                 $data['created_until'] ?? null,
-                //                 fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                //                 $data['until'],
+                //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
                 //             );
-                //     })
-                //     ->indicateUsing(function (array $data): array {
-                //         $indicators = [];
-                //         if ($data['created_from'] ?? null) {
-                //             $indicators['created_from'] = 'Order from ' . Carbon::parse($data['created_from'])->toFormattedDateString();
-                //         }
-                //         if ($data['created_until'] ?? null) {
-                //             $indicators['created_until'] = 'Order until ' . Carbon::parse($data['created_until'])->toFormattedDateString();
-                //         }
-
-                //         return $indicators;
                 //     }),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -371,8 +367,163 @@ class SaleResource extends Resource
             //         ->date()
             //         ->collapsible(),
             // ])
-            ->defaultSort('sale_date', 'desc');
+            ->defaultSort('created_at', 'desc');
     }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('Sale Information')
+                    ->schema([
+                        Grid::make(3)
+                            ->schema([
+                                TextEntry::make('id')
+                                    ->label('Sale ID')
+                                    ->badge()
+                                    ->color('primary'),
+
+                                TextEntry::make('sale_date')
+                                    ->label('Sale Date')
+                                    ->date('d/m/Y')
+                                    ->icon('heroicon-o-calendar-days'),
+
+                                TextEntry::make('created_at')
+                                    ->label('Created')
+                                    ->since()
+                                    ->icon('heroicon-o-clock'),
+                            ]),
+
+                        Grid::make(3)
+                            ->schema([
+                                TextEntry::make('customer.name')
+                                    ->label('Customer')
+                                    ->icon('heroicon-o-user')
+                                    ->badge()
+                                    ->color('success')
+                                    ->weight(FontWeight::SemiBold),
+
+                                TextEntry::make('user.name')
+                                    ->label('Created by')
+                                    ->icon('heroicon-o-user-circle')
+                                    ->badge()
+                                    ->color('success'),
+                            ]),
+                        Grid::make(1)
+                            ->schema([
+                                TextEntry::make('note')
+                                    ->label('Notes')
+                                    ->html()
+                                    ->extraAttributes([
+                                        'class' => 'p-4 bg-gray-50 rounded-lg',
+                                    ])
+                            ])
+
+                    ])
+                    ->columns(1),
+
+                \Filament\Infolists\Components\Section::make('Sale Items')
+                    ->schema([
+                        RepeatableEntry::make('items')
+                            ->schema([
+                                Split::make([
+                                    Grid::make(4)
+                                        ->schema([
+                                            TextEntry::make('product.name')
+                                                ->label('Product')
+                                                ->weight(FontWeight::SemiBold)
+                                                ->icon('heroicon-o-cube'),
+
+                                            TextEntry::make('qty')
+                                                ->label('Quantity')
+                                                ->badge()
+                                                ->color('info'),
+
+                                            TextEntry::make('unit_price')
+                                                ->label('Unit Price')
+                                                ->money('USD')
+                                                ->icon('heroicon-o-currency-dollar'),
+
+                                            TextEntry::make('sub_total')
+                                                ->label('Sub Total')
+                                                ->money('USD')
+                                                ->weight(FontWeight::Bold)
+                                                ->color('success')
+                                                ->state(function ($record) {
+                                                    return $record->qty * $record->unit_price;
+                                                }),
+                                        ]),
+                                ])
+                            ])
+                            ->contained(false)
+                            ->hiddenLabel(),
+
+                        Grid::make(4)
+                            ->schema([
+                                // TextEntry::make('total_items')
+                                //     ->label('Total Items')
+                                //     ->state(function ($record) {
+                                //         return $record->items->sum('qty');
+                                //     })
+                                //     ->badge()
+                                //     ->color('info')
+                                //     ->icon('heroicon-o-list-bullet'),
+                                TextEntry::make('d')
+                                    ->label(''),
+                                TextEntry::make('s')
+                                    ->label(''),
+                                TextEntry::make('x')
+                                    ->label(''),
+
+                                TextEntry::make('total_amount')
+                                    ->label('Total Amount')
+                                    ->state(function ($record) {
+                                        return $record->items->sum(function ($item) {
+                                            return $item->qty * $item->unit_price;
+                                        });
+                                    })
+                                    ->money('USD')
+                                    ->size('lg')
+                                    ->weight(FontWeight::Bold)
+                                    ->color('success')
+                                    ->icon('heroicon-o-currency-dollar'),
+                            ])
+                    ])
+                    ->collapsible(),
+            ]);
+    }
+
+    // // Alternative compact version for list views or smaller displays
+    // public function compactInfolist(Infolist $infolist): Infolist
+    // {
+    //     return $infolist
+    //         ->schema([
+    //             Split::make([
+    //                 Grid::make(2)
+    //                     ->schema([
+    //                         TextEntry::make('customer.name')
+    //                             ->label('Customer')
+    //                             ->weight(FontWeight::SemiBold),
+
+    //                         TextEntry::make('sale_date')
+    //                             ->label('Date')
+    //                             ->date('d/m/Y'),
+    //                     ]),
+
+    //                 TextEntry::make('total_amount')
+    //                     ->label('Total')
+    //                     ->state(function ($record) {
+    //                         return $record->items->sum(function ($item) {
+    //                             return $item->qty * $item->unit_price;
+    //                         });
+    //                     })
+    //                     ->money('USD')
+    //                     ->weight(FontWeight::Bold)
+    //                     ->color('success')
+    //                     ->grow(false),
+    //             ])
+    //         ]);
+    // }
 
     public static function getRelations(): array
     {
@@ -386,6 +537,7 @@ class SaleResource extends Resource
         return [
             'index' => Pages\ListSales::route('/'),
             'create' => Pages\CreateSale::route('/create'),
+            // 'view' => Pages\ViewSale::route('/{record}'),
             'edit' => Pages\EditSale::route('/{record}/edit'),
         ];
     }

@@ -145,6 +145,36 @@ class CustomerResource extends Resource
                                 ->badge()
                                 ->color('gray'),
                         ]),
+                        Grid::make(4)
+                        ->schema([
+                            // TextEntry::make('total_items')
+                            //     ->label('Total Items')
+                            //     ->state(function ($record) {
+                            //         return $record->items->sum('qty');
+                            //     })
+                            //     ->badge()
+                            //     ->color('info')
+                            //     ->icon('heroicon-o-list-bullet'),
+                            TextEntry::make('d')
+                                ->label(''),
+                            TextEntry::make('s')
+                                ->label(''),
+                            TextEntry::make('x')
+                                ->label(''),
+
+                            TextEntry::make('total_amount')
+                                ->label('Total Amount')
+                                ->state(function ($record) {
+                                    return $record->items->sum(function ($item) {
+                                        return $item->qty * $item->unit_price;
+                                    });
+                                })
+                                ->money('USD')
+                                ->size('lg')
+                                ->weight(FontWeight::Bold)
+                                ->color('success')
+                                ->icon('heroicon-o-currency-dollar'),
+                        ])
                     ]),
 
                 Section::make('Contact Details')

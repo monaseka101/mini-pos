@@ -207,18 +207,16 @@ class ProductResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('activate')
-                        ->label('Activate Selected')
-                        ->icon('heroicon-m-check-circle')
-                        ->color('success')
-                        ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-                    Tables\Actions\BulkAction::make('deactivate')
-                        ->label('Deactivate Selected')
-                        ->icon('heroicon-m-x-circle')
-                        ->color('danger')
-                        ->action(fn(Collection $records) => $records->each->update(['active' => false])),
-                ]),
+                Tables\Actions\BulkAction::make('activate')
+                    ->label('Activate Selected')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+                Tables\Actions\BulkAction::make('deactivate')
+                    ->label('Deactivate Selected')
+                    ->icon('heroicon-m-x-circle')
+                    ->color('danger')
+                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ])
             ->defaultSort('active', 'desc');
     }

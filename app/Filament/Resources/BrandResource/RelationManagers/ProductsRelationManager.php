@@ -20,83 +20,88 @@ class ProductsRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        return $form->schema([
-            Section::make('Product Information')
-                ->description('Basic product details')
-                ->icon('heroicon-m-information-circle')
-                ->schema([
-                    Grid::make(2)->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('Product Name')
-                            ->required()
-                            ->maxLength(255)
-                            ->placeholder('Enter product name')
-                            ->unique(ignoreRecord: true),
+        return $form
+            ->schema([
+                Section::make('Product Information')
+                    ->description('Basic product details')
+                    ->icon('heroicon-m-information-circle')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('name')
+                                ->label('Product Name')
+                                ->required()
+                                ->maxLength(255)
+                                ->placeholder('Enter product name')
+                                ->unique(ignoreRecord: true),
 
-                        Forms\Components\TextInput::make('price')
-                            ->label('Price')
-                            ->required()
-                            ->numeric()
-                            ->prefix('$')
-                            ->placeholder('0.00')
-                            ->minValue(0.01),
+                            Forms\Components\TextInput::make('price')
+                                ->label('Price')
+                                ->required()
+                                ->numeric()
+                                ->prefix('$')
+                                ->placeholder('0.00')
+                                ->minValue(0.01),
 
-                        Forms\Components\Select::make('category_id')
-                            ->label('Category')
-                            ->required()
-                            ->relationship('category', 'name', fn(Builder $query) => $query->where('active', true))
-                            ->searchable()
-                            ->preload()
-                            ->exists(table: Category::class, column: 'id')
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->unique()
-                                    ->required()
-                                    ->maxLength(255),
-                            ])
-                            ->placeholder('Select or create category'),
+                            Forms\Components\Select::make('category_id')
+                                ->label('Category')
+                                ->required()
+                                ->relationship('category', 'name', fn(Builder $query) => $query->where('active', true))
+                                ->searchable()
+                                ->preload()
+                                ->exists(table: Category::class, column: 'id')
+                                ->createOptionForm([
+                                    Forms\Components\TextInput::make('name')
+                                        ->unique()
+                                        ->required()
+                                        ->maxLength(255),
+                                ])
+                                ->placeholder('Select or create category'),
 
-                        Forms\Components\TextInput::make('stock_security')
-                            ->label('Security Stock Level')
-                            ->required()
-                            ->numeric()
-                            ->minValue(1)
-                            ->helperText('Minimum stock level before warning'),
+                            Forms\Components\TextInput::make('stock_security')
+                                ->label('Security Stock Level')
+                                ->required()
+                                ->numeric()
+                                ->minValue(1)
+                                ->helperText('Minimum stock level before warning'),
+                        ]),
+
+                        Forms\Components\RichEditor::make('description')
+                            ->label('Product Description')
+                            ->placeholder('Describe your product in detail...')
+                            ->columnSpanFull(),
                     ]),
 
-                    Forms\Components\RichEditor::make('description')
-                        ->label('Product Description')
-                        ->placeholder('Describe your product in detail...')
-                        ->columnSpanFull(),
-                ]),
+                Section::make('Product Media')
+                    ->description('Upload product images')
+                    ->icon('heroicon-m-photo')
+                    ->schema([
+                        Forms\Components\FileUpload::make('image')
+                            ->label('Product Image')
+                            ->image()
+                            ->imageEditor()
+                            ->imageEditorAspectRatios(['16:9', '4:3', '1:1'])
+                            ->directory('products')
+                            ->disk('public')
+                            ->visibility('public')
+                            ->maxSize(2048)
+                            ->helperText('Upload a high quality product image (max 2MB, JPG/PNG/WebP)')
+                            ->columnSpanFull(),
+                    ]),
 
-            Section::make('Product Media')
-                ->description('Upload product images')
-                ->icon('heroicon-m-photo')
-                ->schema([
-                    Forms\Components\FileUpload::make('image')
-                        ->label('Product Image')
-                        ->image()
-                        ->imageEditor()
-                        ->imageEditorAspectRatios(['16:9', '4:3', '1:1'])
-                        ->directory('products')
-                        ->disk('public')
-                        ->visibility('public')
-                        ->maxSize(2048)
-                        ->helperText('Upload a high quality product image (max 2MB, JPG/PNG/WebP)')
-                        ->columnSpanFull(),
-                ]),
+                Section::make('Status')
+                    ->description('Product availability')
+                    ->icon('heroicon-m-eye')
+                    ->schema([
+                        Forms\Components\Toggle::make('active')
+                            ->label('Active')
+                            ->default(true)
+                            ->helperText('Toggle to activate/deactivate this product'),
 
-            Section::make('Status')
-                ->description('Product availability')
-                ->icon('heroicon-m-eye')
-                ->schema([
-                    Forms\Components\Toggle::make('active')
-                        ->label('Active')
-                        ->default(true)
-                        ->helperText('Toggle to activate/deactivate this product'),
-                ]),
-        ]);
+                        Forms\Components\Hidden::make('user_id')
+                            ->default(auth()->id())
+                            ->dehydrated(fn($state) => filled($state)),
+                    ]),
+            ]);
     }
 
     public function table(Table $table): Table

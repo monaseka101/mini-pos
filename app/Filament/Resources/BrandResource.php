@@ -89,7 +89,11 @@ class BrandResource extends Resource
                 Tables\Columns\TextColumn::make('website')
                     ->searchable()
                     ->url(fn($state) => $state)
-                    // ->color('primary')
+                    ->icon('heroicon-m-link')
+                    ->tooltip('Click to open website')
+                    ->copyable()
+                    ->copyMessage('Website URL copied!')
+                    ->copyMessageDuration(1500)
                     ->openUrlInNewTab(),
                 Tables\Columns\TextColumn::make('made_in')
                     ->badge()
