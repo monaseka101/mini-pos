@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->nullOnDelete();
-            $table->foreignId('customer_id')->constrained('customers')->nullOnDelete();
+            $table->foreignId('user_id')->nullable()->nullOnDelete();
+            $table->foreignId('customer_id')->nullable()->nullOnDelete();
             $table->date('sale_date')->nullable();
             $table->text('note')->nullable();
             // $table->boolean('active')->default(true);

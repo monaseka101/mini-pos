@@ -10,7 +10,6 @@ use App\Models\Supplier;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Parfaitementweb\FilamentCountryField\Forms\Components\Country;
 
 class DatabaseSeeder extends Seeder
 {
@@ -27,6 +26,14 @@ class DatabaseSeeder extends Seeder
             'role' => Role::Admin,
             'active' => true
         ]);
+
+        User::factory()->create([
+            'name' => 'Test',
+            'email' => 'test@example.com',
+            'role' => Role::Cashier,
+            'active' => true
+        ]);
+
 
         Customer::factory(10)->create();
 
@@ -48,8 +55,8 @@ class DatabaseSeeder extends Seeder
         foreach ($categories as $cat) {
             Category::create([
                 'name' => $cat,
-                'active' => fake()->randomElement([true, false]),
-                'description' => fake()->sentence(1)
+                'active' => true,
+                'description' => fake()->sentence(2)
             ]);
         }
 

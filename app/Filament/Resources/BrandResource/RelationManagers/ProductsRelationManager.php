@@ -89,7 +89,7 @@ class ProductsRelationManager extends RelationManager
                     ]),
 
                 Section::make('Status')
-                    ->description('Product availability')
+                    // ->description('Product availability')
                     ->icon('heroicon-m-eye')
                     ->schema([
                         Forms\Components\Toggle::make('active')
