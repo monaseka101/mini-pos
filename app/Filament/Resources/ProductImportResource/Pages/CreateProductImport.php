@@ -18,6 +18,11 @@ class CreateProductImport extends CreateRecord
         return $data;
     }
 
+    protected function getRedirectUrl(): string
+    {
+        return ProductImportResource::getUrl('index');
+    }
+
     protected function afterCreate()
     {
         Log::info($this->record->items);
