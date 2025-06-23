@@ -162,7 +162,7 @@ class BrandResource extends Resource
                         \Filament\Infolists\Components\TextEntry::make('website')
                             ->label('Official Website')
                             ->icon('heroicon-m-link')
-                            ->url(fn ($state) => $state)
+                            ->url(fn($state) => $state)
                             ->openUrlInNewTab()
                             ->copyable()
                             ->copyMessage('Website URL copied!')
@@ -194,7 +194,7 @@ class BrandResource extends Resource
 
                                 \Filament\Infolists\Components\TextEntry::make('products_count')
                                     ->label('Total Products')
-                                    ->state(fn ($record) => $record->products()->count())
+                                    ->state(fn($record) => $record->products()->count())
                                     ->badge()
                                     ->color('info')
                                     ->icon('heroicon-m-squares-2x2'),

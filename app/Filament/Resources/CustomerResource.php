@@ -20,6 +20,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Log;
 
 class CustomerResource extends Resource
 {
@@ -162,19 +163,6 @@ class CustomerResource extends Resource
                                 ->label(''),
                             TextEntry::make('x')
                                 ->label(''),
-
-                            TextEntry::make('total_amount')
-                                ->label('Total Amount')
-                                ->state(function ($record) {
-                                    return $record->items->sum(function ($item) {
-                                        return $item->qty * $item->unit_price;
-                                    });
-                                })
-                                ->money('USD')
-                                ->size('lg')
-                                ->weight(FontWeight::Bold)
-                                ->color('success')
-                                ->icon('heroicon-o-currency-dollar'),
                         ])
                     ]),
 

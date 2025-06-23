@@ -161,7 +161,7 @@ class SalesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
-            ->heading("Sales History")
+            ->heading("Purchase History")
             ->columns([
                 Tables\Columns\TextColumn::make('sale_date')
                     ->label('Sale Date')

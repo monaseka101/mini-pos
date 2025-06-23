@@ -96,7 +96,7 @@ class EditProfile extends BaseEditProfile
                     ->password()
                     ->rule(Password::default())
                     ->autocomplete('new-password')
-                    ->dehydrateStateUsing(fn ($state) => $state ? Hash::make($state) : null)
+                    ->dehydrateStateUsing(fn($state) => $state ? Hash::make($state) : null)
                     ->live(debounce: 500)
                     ->same('password_confirmation')
                     ->prefixIcon('heroicon-m-key')

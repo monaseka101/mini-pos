@@ -12,6 +12,17 @@ class EditSale extends EditRecord
 {
     protected static string $resource = SaleResource::class;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        Log::info('Sale Items:', [
+            'sale_id' => $this->record->id,
+            'items' => $this->record->items()->get()
+        ]);
+
+        return $data;
+    }
+
+
     protected function beforeSave()
     {
         Log::info($this->record);

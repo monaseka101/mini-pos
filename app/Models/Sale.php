@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,13 +15,15 @@ class Sale extends Model
 
     public function totalPrice()
     {
-        return collect($this->items)->reduce(fn($total, $item) => $total + $item->subTotal(), 0);
+        return collect($this->items)
+            ->reduce(fn($total, $item) => $total + $item->subTotal(), 0);
     }
 
-
-    public function totalItemQty()
+    protected function totalQty(): Attribute
     {
-        return collect($this->items)->reduce(fn($totalQty, $item) => $totalQty + $item->qty, 0);
+        return Attribute::make(
+            get: fn() => $this->items->sum('qty')
+        );
     }
 
 

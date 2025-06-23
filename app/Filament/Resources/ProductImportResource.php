@@ -47,6 +47,8 @@ class ProductImportResource extends Resource
                             ->required(),
                         Forms\Components\DatePicker::make('import_date')
                             ->label('Import Date')
+                            ->displayFormat('d/m/Y')
+                            // ->native(false)
                             ->default(now())
                             ->required(),
                         Forms\Components\RichEditor::make('note')
@@ -64,7 +66,6 @@ class ProductImportResource extends Resource
                                     ->required()
                                     ->distinct()
                                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
-
                                     ->searchable(),
 
                                 Forms\Components\TextInput::make('qty')
@@ -250,9 +251,15 @@ class ProductImportResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (ProductImport $record) {
+                        foreach ($record->items as $item) {
+                            $product = $item->product;
+                            $product->decrement('stock', $item->qty);
+                        }
+                    })
             ])
-            ->bulkActions([
+            ->bulkActions(actions: [
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),

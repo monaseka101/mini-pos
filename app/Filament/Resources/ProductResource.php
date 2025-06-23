@@ -27,6 +27,7 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\Split;
 use Filament\Support\Enums\FontWeight;
+use Filament\Tables\Columns\Layout\Split as LayoutSplit;
 
 use function Laravel\Prompts\table;
 

@@ -16,4 +16,15 @@ class EditProductImport extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        logger('Current Items', [$this->record->items()->get()]);
+        return $data;
+    }
+
+    protected function afterSave()
+    {
+        logger('Edit Product Import', [$this->record['items']]);
+    }
 }

@@ -79,30 +79,6 @@ class SaleResource extends Resource
         // ->columns(4);
     }
 
-    // public static function form(Form $form): Form
-    // {
-    //     return $form->schema([
-    //         Forms\Components\Group::make()
-    //             ->schema([
-    //                 Forms\Components\Section::make()
-    //                     ->schema(static::getDetailsFormSchema())
-    //             ])->columnSpanFull(),
-    //         Forms\Components\Section::make('Sale items')
-    //             ->headerActions([
-    //                 Action::make('reset')
-    //                     ->modalHeading('Are you sure?')
-    //                     ->modalDescription('All existing items will be removed from the order.')
-    //                     ->requiresConfirmation()
-    //                     ->color('danger')
-    //                 // ->action(fn(Forms\Set $set) => $set('items', [])),
-    //             ])
-    //             ->schema(components: [
-    //                 static::getItemsRepeater(),
-    //             ])
-
-    //     ]);
-    // }
-
     public static function getDetailsFormSchema(): array
     {
         return [
@@ -327,6 +303,8 @@ class SaleResource extends Resource
                     ->dateTime('d/m/Y')
                     ->dateTooltip('d/M/Y')
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Sold By')
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('customer')
@@ -355,7 +333,7 @@ class SaleResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->groupedBulkActions([
@@ -460,14 +438,6 @@ class SaleResource extends Resource
 
                         Grid::make(4)
                             ->schema([
-                                // TextEntry::make('total_items')
-                                //     ->label('Total Items')
-                                //     ->state(function ($record) {
-                                //         return $record->items->sum('qty');
-                                //     })
-                                //     ->badge()
-                                //     ->color('info')
-                                //     ->icon('heroicon-o-list-bullet'),
                                 TextEntry::make('d')
                                     ->label(''),
                                 TextEntry::make('s')
@@ -493,38 +463,6 @@ class SaleResource extends Resource
             ]);
     }
 
-    // // Alternative compact version for list views or smaller displays
-    // public function compactInfolist(Infolist $infolist): Infolist
-    // {
-    //     return $infolist
-    //         ->schema([
-    //             Split::make([
-    //                 Grid::make(2)
-    //                     ->schema([
-    //                         TextEntry::make('customer.name')
-    //                             ->label('Customer')
-    //                             ->weight(FontWeight::SemiBold),
-
-    //                         TextEntry::make('sale_date')
-    //                             ->label('Date')
-    //                             ->date('d/m/Y'),
-    //                     ]),
-
-    //                 TextEntry::make('total_amount')
-    //                     ->label('Total')
-    //                     ->state(function ($record) {
-    //                         return $record->items->sum(function ($item) {
-    //                             return $item->qty * $item->unit_price;
-    //                         });
-    //                     })
-    //                     ->money('USD')
-    //                     ->weight(FontWeight::Bold)
-    //                     ->color('success')
-    //                     ->grow(false),
-    //             ])
-    //         ]);
-    // }
-
     public static function getRelations(): array
     {
         return [
@@ -538,7 +476,7 @@ class SaleResource extends Resource
             'index' => Pages\ListSales::route('/'),
             'create' => Pages\CreateSale::route('/create'),
             // 'view' => Pages\ViewSale::route('/{record}'),
-            'edit' => Pages\EditSale::route('/{record}/edit'),
+            // 'edit' => Pages\EditSale::route('/{record}/edit'),
         ];
     }
 }
