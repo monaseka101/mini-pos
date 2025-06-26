@@ -47,13 +47,38 @@ class CreateSale extends CreateRecord
     protected function afterCreate(): void
     {
         $items =  $this->record->items;
+        $total = 0;
+
         foreach ($items as $item) {
+
+            $unitPrice = $item->unit_price;
+            $qty = $item->qty;
+            $discountAmount = 0;
+            if ($item->discount_id) {
+                $discountModel = \App\Models\Discount::find($item->discount_id);
+                if ($discountModel && $discountModel->value > 0) {
+                    $discount = $discountModel->value;
+                    $isPercent = $discountModel->ispercent;
+
+                    $discountAmount = $isPercent
+                        ? ($unitPrice * $discount / 100)
+                        : $discount;
+                }
+            }
+
+            $finalPrice = ($unitPrice - $discountAmount) * $qty;
+            $total += $finalPrice;
+
             $product = Product::find($item->product_id);
             if ($product && $product->stock >= $item->qty) {
                 $product->decrement('stock', $item->qty);
             }
         }
+
+        $this->record->total_pay = $this->record->totalPay(); // ← this line saves the calculated value
+        $this->record->save();
     }
+
 
     protected function getSteps(): array
     {

@@ -21,10 +21,13 @@ class ProductStats extends BaseWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Total Products', $this->getPageTableQuery()->where('active', true)->count()),
+            Stat::make('Total Unique Products', $this->getPageTableQuery()->count())->chart([27, 27])
+                ->color('info'),
 
-            Stat::make('Product Inventory', $this->getPageTableQuery()->sum('stock')),
-            Stat::make('Average Price', '$ ' . number_format($this->getPageTableQuery()->avg('price'), 2)),
+            Stat::make('Product Inventory', $this->getPageTableQuery()->sum('stock'))->chart([27, 27])
+                ->color('info'),
+            Stat::make('Average Price', '$ ' . number_format($this->getPageTableQuery()->avg('price'), 2))->chart([27, 27])
+                ->color('info'),
         ];
     }
 }

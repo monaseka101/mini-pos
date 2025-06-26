@@ -27,6 +27,12 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\Split;
 use Filament\Support\Enums\FontWeight;
+use Filament\Tables\Actions\Action;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\productExport;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use App\Filament\Resources\Auth;
 
 use function Laravel\Prompts\table;
 
@@ -217,6 +223,19 @@ class ProductResource extends Resource
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
                     ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+            ])
+            ->HeaderActions([
+                Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductExport, 'products.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductExport, 'products.xlsx');
+                    }),
             ])
             ->defaultSort('active', 'desc');
     }

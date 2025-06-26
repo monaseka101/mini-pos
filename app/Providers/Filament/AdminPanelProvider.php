@@ -15,11 +15,13 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets;
+use Illuminate\Container\Attributes\Storage;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Storage as FacadesStorage;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -29,13 +31,15 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->profile(EditProfile::class, isSimple: false)
-            ->brandName('Computer Shop')
+            // ->brandName('TL Gold Computer')
+            ->brandLogo(FacadesStorage::url(path: 'default/bg.png'))
             ->id('admin')
             ->globalSearch(false)
             ->path('admin')
             ->login()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => color::Blue,
+                'secondery' => color::Blue
             ])
             ->sidebarWidth('16rem')
             ->navigationGroups([
@@ -47,13 +51,27 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
+                \App\Filament\Pages\Dashboard1::class,
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            // ->widgets([
-            //     Widgets\AccountWidget::class,
-            //     Widgets\FilamentInfoWidget::class,
-            // ])
+            // ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->widgets([
+                //  Widgets\AccountWidget::class,
+                //  Widgets\FilamentInfoWidget::class,
+                \App\Filament\Widgets\SaleStats::class,
+                //\App\Filament\Widgets\RevenueStats::class,
+                \App\Filament\Widgets\InventoryStats::class,
+
+
+                \App\Filament\Widgets\SalesChart::class,
+                \App\Filament\Widgets\ProductImportChart::class,
+
+                \App\Filament\Widgets\Brandpie::class,
+                //\App\Filament\Widgets\Categorypie::class,
+
+                \App\Filament\Widgets\LatestSale::class,
+                \App\Filament\Widgets\SaleActivityChart::class,
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

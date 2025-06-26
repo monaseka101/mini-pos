@@ -19,8 +19,12 @@ class EditSale extends EditRecord
 
     protected function afterSave()
     {
-        Log::info($this->record);
-        Log::info($this->record->items);
+        $this->record->load('items.discount');
+
+        $this->record->total_pay = $this->record->totalPay();
+        $this->record->save(); // save updated total_pay
+
+        //Log::info('Updated total_pay:', ['total_pay' => $this->record->total_pay]);
     }
 
     protected function getHeaderActions(): array

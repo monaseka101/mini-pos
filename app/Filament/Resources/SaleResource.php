@@ -29,6 +29,13 @@ use Filament\Forms\Set;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Infolist;
 use Illuminate\Support\Facades\Log;
+use Filament\Infolists\Components\Actions;
+use App\Exports\SalesItemExport;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Filament\Resources\SaleResource\Widgets\Salestats;
+//use App\Filament\Resources\SaleResource\Widgets\SaleActivityChart;
+
+
 
 class SaleResource extends Resource
 {
@@ -193,11 +200,30 @@ class SaleResource extends Resource
                     ->dehydrated()
                     ->prefix('$')
                     ->required(),
+                Forms\Components\Select::make('discount_id')
+                    ->label('Discount')
+                    ->relationship('discount', 'name', fn($query) => $query->where('active', true))
+                    ->searchable()
+                    ->preload()
+                    ->afterStateUpdated(
+                        function ($state, Forms\Set $set) {
+                            $discount = \App\Models\Discount::find($state);
+                            if ($discount) {
+                                $set('discount_value', $discount->value);
+                                $set('is_percent', $discount->ispercent);
+                            } else {
+                                $set('discount_value', 0);
+                                $set('is_percent', 0);
+                            }
+                        }
+                    )
+                    ->default(1)
+                    ->required()
             ])
             ->orderColumn('')
             ->defaultItems(1)
             ->hiddenLabel()
-            ->columns(4)
+            ->columns(5)
             ->required();
     }
 
@@ -291,6 +317,14 @@ class SaleResource extends Resource
     //         ->defaultSort('created_at', 'desc');
     // }
 
+    public static function getWidgets(): array
+    {
+        return [
+            Salestats::class,
+            //SaleActivityChart::class,
+        ];
+    }
+
 
     public static function table(Table $table): Table
     {
@@ -317,6 +351,17 @@ class SaleResource extends Resource
                     ->sortable()
                     ->badge()
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('has_discount')
+                    ->label('Discount?')
+                    ->getStateUsing(fn(Sale $record) => $record->getHasDiscountAttribute())
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('total_pay')
+                    ->money(currency: 'usd')
+                    ->getStateUsing(fn(Sale $record) => $record->totalPay())
+                    ->sortable()
+                    ->badge()
+                    ->toggleable(),
+
 
                 // Tables\Columns\IconColumn::make('active')
                 //     ->boolean(),
@@ -367,8 +412,22 @@ class SaleResource extends Resource
             //         ->date()
             //         ->collapsible(),
             // ])
+            ->HeaderActions([
+                Tables\Actions\Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new SalesItemExport, 'Sale.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Tables\Actions\Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new SalesItemExport, 'Sale.xlsx');
+                    }),
+            ])
             ->defaultSort('created_at', 'desc');
     }
+
 
     public static function infolist(Infolist $infolist): Infolist
     {
@@ -427,7 +486,7 @@ class SaleResource extends Resource
                         RepeatableEntry::make('items')
                             ->schema([
                                 Split::make([
-                                    Grid::make(4)
+                                    Grid::make(5)
                                         ->schema([
                                             TextEntry::make('product.name')
                                                 ->label('Product')
@@ -444,14 +503,35 @@ class SaleResource extends Resource
                                                 ->money('USD')
                                                 ->icon('heroicon-o-currency-dollar'),
 
-                                            TextEntry::make('sub_total')
-                                                ->label('Sub Total')
+                                            TextEntry::make('discount.value')
+                                                ->label('Discount')
+                                                ->formatStateUsing(function ($state, $record) {
+                                                    if ($record->discount?->ispercent == '1') {
+                                                        return $state . '%';
+                                                    }
+                                                    return '-$' . number_format($state, 2);
+                                                }),
+
+                                            TextEntry::make('discount.value')
+                                                ->label('Total')
                                                 ->money('USD')
                                                 ->weight(FontWeight::Bold)
                                                 ->color('success')
                                                 ->state(function ($record) {
-                                                    return $record->qty * $record->unit_price;
-                                                }),
+                                                    $qty = $record->qty ?? 0;
+                                                    $unitPrice = $record->unit_price ?? 0;
+                                                    $subtotal = $qty * $unitPrice;
+
+                                                    $discountValue = $record->discount->value ?? 0;
+                                                    $isPercent = $record->discount->ispercent ?? '0';
+
+                                                    if ($isPercent == '1') {
+                                                        return $subtotal - ($subtotal * ($discountValue / 100));
+                                                    }
+
+                                                    return $subtotal - $discountValue;
+                                                })
+
                                         ]),
                                 ])
                             ])
@@ -476,10 +556,17 @@ class SaleResource extends Resource
                                     ->label(''),
 
                                 TextEntry::make('total_amount')
-                                    ->label('Total Amount')
+                                    ->label('Sub Total')
                                     ->state(function ($record) {
                                         return $record->items->sum(function ($item) {
-                                            return $item->qty * $item->unit_price;
+                                            $subtotal = $item->qty * $item->unit_price;
+                                            $discountValue = $item->discount->value ?? 0;
+                                            $isPercent = $item->discount->ispercent ?? '0';
+
+                                            if ($isPercent == '1') {
+                                                return $subtotal - ($subtotal * ($discountValue / 100));
+                                            }
+                                            return $subtotal - $discountValue;
                                         });
                                     })
                                     ->money('USD')
@@ -488,8 +575,24 @@ class SaleResource extends Resource
                                     ->color('success')
                                     ->icon('heroicon-o-currency-dollar'),
                             ])
+
                     ])
                     ->collapsible(),
+                Grid::make()
+                    ->schema([
+                        TextEntry::make('print_button')
+                            ->label('')
+                            ->html()
+                            ->state(function ($record) {
+                                return '<div style="text-align: right;">
+                            <a href="' . route('receipt.print', ['sale' => $record->id]) . '" target="_blank"
+                                style="background-color:rgb(43, 179, 64); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                                🖨️ Print Receipt
+                            </a>
+                        </div>';
+                            })
+                            ->columnSpanFull(),
+                    ])
             ]);
     }
 
@@ -537,7 +640,7 @@ class SaleResource extends Resource
         return [
             'index' => Pages\ListSales::route('/'),
             'create' => Pages\CreateSale::route('/create'),
-            // 'view' => Pages\ViewSale::route('/{record}'),
+            'view2' => Pages\ViewSale::route('/{record}'),
             'edit' => Pages\EditSale::route('/{record}/edit'),
         ];
     }
