@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Models\Sale;
 use App\Models\Customer;
 use App\Models\Product;
-use App\Models\SaleItem;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -16,10 +15,8 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Forms\Components\Section;
-use Filament\Infolists\Components\Grid;
 use Filament\Forms\Components\Repeater;
+use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\Split;
@@ -28,81 +25,50 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Infolist;
-use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\SalesItemExport;
+use App\Filament\Resources\SaleResource\Widgets\Salestats;
 
 class SaleResource extends Resource
 {
+    // Bind the Eloquent model
     protected static ?string $model = Sale::class;
+
+    // Icons and labels for navigation in Filament admin panel
     protected static ?string $navigationIcon = 'heroicon-m-shopping-cart';
     protected static ?string $navigationLabel = 'Sales';
     protected static ?string $modelLabel = 'Sale';
     protected static ?string $pluralModelLabel = 'Sales';
 
+    /**
+     * Define the form schema for creating and editing a Sale
+     */
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                // Group sections to control layout
                 Forms\Components\Group::make()
                     ->schema([
+                        // Sale details section (customer, sale date, note)
                         Forms\Components\Section::make()
                             ->schema(static::getDetailsFormSchema())
                             ->columns(2),
 
+                        // Section to add sale items with a repeater component
                         Forms\Components\Section::make('Sale Items')
-                            // ->headerActions([
-                            //     Action::make('reset')
-                            //         ->modalHeading('Are you sure?')
-                            //         ->modalDescription('All existing items will be removed from the order.')
-                            //         ->requiresConfirmation()
-                            //         ->color('danger')
-                            //         ->action(fn(Forms\Set $set) => $set('items', [])),
-                            // ])
                             ->schema([
                                 static::getItemsRepeater(),
                             ]),
                     ])
+                    // Responsive column span depending on if record exists
                     ->columnSpan(['lg' => fn(?Sale $record) => $record === null ? 3 : 2]),
-
-                // Forms\Components\Section::make()
-                //     ->schema([
-                //         Forms\Components\Placeholder::make('created_at')
-                //             ->label('Created at')
-                //             ->content(fn(Sale $record): ?string => $record->created_at?->diffForHumans()),
-
-                //         Forms\Components\Placeholder::make('updated_at')
-                //             ->label('Last modified at')
-                //             ->content(fn(Sale $record): ?string => $record->updated_at?->diffForHumans()),
-                //     ])
-                //     ->columnSpan(['lg' => 1])
-                //     ->hidden(fn(?Sale $record) => $record === null),
             ]);
-        // ->columns(4);
     }
 
-    // public static function form(Form $form): Form
-    // {
-    //     return $form->schema([
-    //         Forms\Components\Group::make()
-    //             ->schema([
-    //                 Forms\Components\Section::make()
-    //                     ->schema(static::getDetailsFormSchema())
-    //             ])->columnSpanFull(),
-    //         Forms\Components\Section::make('Sale items')
-    //             ->headerActions([
-    //                 Action::make('reset')
-    //                     ->modalHeading('Are you sure?')
-    //                     ->modalDescription('All existing items will be removed from the order.')
-    //                     ->requiresConfirmation()
-    //                     ->color('danger')
-    //                 // ->action(fn(Forms\Set $set) => $set('items', [])),
-    //             ])
-    //             ->schema(components: [
-    //                 static::getItemsRepeater(),
-    //             ])
-
-    //     ]);
-    // }
-
+    /**
+     * Returns form components for the Sale details section
+     */
     public static function getDetailsFormSchema(): array
     {
         return [
@@ -110,188 +76,109 @@ class SaleResource extends Resource
                 ->relationship(
                     'customer',
                     'name',
-                    fn($query) => $query->where('active', true)
+                    fn($query) => $query->where('active', true) // only active customers
                 )
                 ->preload()
                 ->searchable()
                 ->required()
+                ->default(1)
                 ->createOptionForm([
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->maxLength(255),
-
                     Forms\Components\TextInput::make('phone')
                         ->maxLength(255),
                 ]),
 
-            Forms\Components\DatePicker::make('sale_date')
-                // ->date()
-                // ->displayFormat(function () {
-                //     return 'd/m/Y';
-                // })
+            // Sale date picker with default as now
+            DatePicker::make('sale_date')
                 ->default(now()),
 
+            // Optional rich text note
             Forms\Components\RichEditor::make('note')
                 ->columnSpan('full'),
-            // Forms\Components\Toggle::make('active')
-            //     ->default(true)
-            //     ->required(),
         ];
     }
 
+    /**
+     * Defines the repeater used to input multiple sale items
+     */
     public static function getItemsRepeater(): Repeater
     {
         return Repeater::make('items')
-            ->relationship()
+            ->relationship() // Binds to related sale items
             ->schema([
+                // Product select dropdown (only active products)
                 Forms\Components\Select::make('product_id')
                     ->label('Product')
                     ->relationship('product', 'name', fn($query) => $query->where('active', true))
                     ->preload()
                     ->required()
-                    // ->reactive()
-                    ->afterStateUpdated(
-                        function ($state, Forms\Set $set, Forms\Get $get) {
-                            $product = Product::find($state);
-                            if ($product) {
-                                $set('unit_price', $product->price ?? 0);
-                                $set('available_stock', $product->stock ?? 0);
-                            }
+                    ->afterStateUpdated(function ($state, Set $set) {
+                        // Automatically set unit price and available stock when product selected
+                        $product = Product::find($state);
+                        if ($product) {
+                            $set('unit_price', $product->price ?? 0);
+                            $set('available_stock', $product->stock ?? 0);
                         }
-                    )
+                    })
                     ->distinct()
                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
-                    // ->columnSpan([
-                    //     'md' => 2,
-                    // ])
                     ->searchable(),
+
+                // Quantity input, validated against stock availability
                 Forms\Components\TextInput::make('qty')
                     ->label('Quantity')
                     ->numeric()
                     ->default(1)
                     ->minValue(1)
                     ->maxValue(fn(Get $get) => $get('available_stock'))
-                    ->validationMessages([
-                        'max' => 'The product in stock have only :max.',
-                    ])
-                    // ->columnSpan([
-                    //     'md' => 2,
-                    // ])
+                    ->validationMessages(['max' => 'The product in stock have only :max.'])
                     ->required(),
 
+                // Stock display (disabled, not submitted)
                 Forms\Components\TextInput::make('available_stock')
                     ->label('In Stock')
                     ->disabled()
                     ->dehydrated(false),
-                // ->columnSpan([
-                //     'md' => 2,
-                // ]),
 
+                // Unit price input, disabled but required (comes from product)
                 Forms\Components\TextInput::make('unit_price')
                     ->label('Unit Price')
                     ->disabled()
                     ->dehydrated()
                     ->prefix('$')
                     ->required(),
+
+                // Discount selection for this item, reactive to set discount values
+                Forms\Components\Select::make('discount_id')
+                    ->label('Discount')
+                    ->relationship('discount', 'name', fn($query) => $query->where('active', true))
+                    ->searchable()
+                    ->preload()
+                    ->afterStateUpdated(function ($state, Set $set) {
+                        $discount = \App\Models\Discount::find($state);
+                        if ($discount) {
+                            $set('discount_value', $discount->value);
+                            $set('is_percent', $discount->ispercent);
+                        } else {
+                            $set('discount_value', 0);
+                            $set('is_percent', 0);
+                        }
+                    })
+                    ->default(1)
+                    ->required(),
             ])
-            ->orderColumn('')
-            ->defaultItems(1)
+            ->orderColumn('') // No ordering column specified
+            ->defaultItems(1) // At least one item by default
             ->hiddenLabel()
-            ->columns(4)
+            ->columns(5)
             ->required();
     }
 
-    // public static function table(Table $table): Table
-    // {
-    //     return $table
-    //         ->columns([
-    //             Tables\Columns\TextColumn::make('id')
-    //                 ->label('Sale #')
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('customer.name')
-    //                 ->label('Customer')
-    //                 ->searchable()
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('sale_date')
-    //                 ->label('Sale Date')
-    //                 ->date()
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('saleItems')
-    //                 ->label('Items')
-    //                 ->badge()
-    //                 ->getStateUsing(fn($record) => $record->saleItems->count())
-    //                 ->color('gray'),
-
-    //             Tables\Columns\TextColumn::make('total')
-    //                 ->label('Total')
-    //                 ->money('USD')
-    //                 ->getStateUsing(function ($record) {
-    //                     return $record->saleItems->sum(function ($item) {
-    //                         $subtotal = $item->qty * $item->unit_price;
-    //                         $discount = $subtotal * (($item->discount ?? 0) / 100);
-    //                         return $subtotal - $discount;
-    //                     });
-    //                 })
-    //                 ->sortable(query: function (Builder $query, string $direction): Builder {
-    //                     return $query->withSum(
-    //                         'saleItems as total',
-    //                         'qty * unit_price * (1 - COALESCE(discount, 0) / 100)'
-    //                     )->orderBy('total', $direction);
-    //                 }),
-
-    //             Tables\Columns\IconColumn::make('active')
-    //                 ->boolean()
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('created_at')
-    //                 ->label('Created')
-    //                 ->dateTime()
-    //                 ->sortable()
-    //                 ->toggleable(isToggledHiddenByDefault: true),
-    //         ])
-    //         ->filters([
-    //             Tables\Filters\TernaryFilter::make('active')
-    //                 ->label('Status')
-    //                 ->boolean()
-    //                 ->trueLabel('Active sales only')
-    //                 ->falseLabel('Inactive sales only')
-    //                 ->native(false),
-
-    //             Tables\Filters\Filter::make('sale_date')
-    //                 ->form([
-    //                     DatePicker::make('from')
-    //                         ->label('From Date'),
-    //                     DatePicker::make('until')
-    //                         ->label('Until Date'),
-    //                 ])
-    //                 ->query(function (Builder $query, array $data): Builder {
-    //                     return $query
-    //                         ->when(
-    //                             $data['from'],
-    //                             fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
-    //                         )
-    //                         ->when(
-    //                             $data['until'],
-    //                             fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
-    //                         );
-    //                 }),
-    //         ])
-    //         ->actions([
-    //             Tables\Actions\EditAction::make(),
-    //             Tables\Actions\DeleteAction::make(),
-    //         ])
-    //         ->bulkActions([
-    //             Tables\Actions\BulkActionGroup::make([
-    //                 Tables\Actions\DeleteBulkAction::make(),
-    //             ]),
-    //         ])
-    //         ->defaultSort('created_at', 'desc');
-    // }
-
-
+    /**
+     * Defines the table listing sales with sorting, filtering, and actions
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -300,26 +187,38 @@ class SaleResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->label("Id")
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('customer.name')
                     ->searchable()
                     ->sortable()
+                    // Link to the customer view page, opens in new tab
                     ->url(
                         fn($record) => CustomerResource::getUrl('customer.view', ['record' => $record->customer_id]),
                         shouldOpenInNewTab: true
                     ),
+
                 Tables\Columns\TextColumn::make('note')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->html(),
 
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')
-                    ->getStateUsing(fn(Sale $record) => $record->totalPrice())
+                    ->getStateUsing(fn(Sale $record) => $record->totalPrice()) // Sum price before discount
                     ->sortable()
                     ->badge()
                     ->toggleable(),
 
-                // Tables\Columns\IconColumn::make('active')
-                //     ->boolean(),
+                Tables\Columns\TextColumn::make('has_discount')
+                    ->label('Discount?')
+                    ->getStateUsing(fn(Sale $record) => $record->getHasDiscountAttribute())
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('total_pay')
+                    ->money(currency: 'usd')
+                    ->getStateUsing(fn(Sale $record) => $record->totalPay()) // Sum price after discount
+                    ->sortable()
+                    ->badge()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('sale_date')
                     ->label('Sale Date')
@@ -334,24 +233,6 @@ class SaleResource extends Resource
                     ->searchable()
                     ->multiple()
                     ->relationship('customer', 'name'),
-                // Tables\Filters\Filter::make('sale_date')
-                //     ->form([
-                //         DatePicker::make('from')
-                //             ->label('From Date'),
-                //         DatePicker::make('until')
-                //             ->label('Until Date'),
-                //     ])
-                //     ->query(function (Builder $query, array $data): Builder {
-                //         return $query
-                //             ->when(
-                //                 $data['from'],
-                //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
-                //             )
-                //             ->when(
-                //                 $data['until'],
-                //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
-                //             );
-                //     }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -361,19 +242,34 @@ class SaleResource extends Resource
             ->groupedBulkActions([
                 Tables\Actions\DeleteBulkAction::make()
             ])
-            // ->groups([
-            //     Tables\Grouping\Group::make('sale_date')
-            //         ->label('Order Date')
-            //         ->date()
-            //         ->collapsible(),
-            // ])
-            ->defaultSort('created_at', 'desc');
+            ->headerActions([
+                // Export CSV action, triggers Excel export
+                Tables\Actions\Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(
+                        fn(): \Symfony\Component\HttpFoundation\BinaryFileResponse =>
+                        Excel::download(new SalesItemExport, 'Sale.csv', \Maatwebsite\Excel\Excel::CSV)
+                    ),
+
+                // Export XLSX action
+                Tables\Actions\Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(
+                        fn(): \Symfony\Component\HttpFoundation\BinaryFileResponse =>
+                        Excel::download(new SalesItemExport, 'Sale.xlsx')
+                    ),
+            ])
+            ->defaultSort('sale_date', 'desc'); // Default newest sales first
     }
 
+    /**
+     * Defines infolist details view schema to display sale information nicely
+     */
     public static function infolist(Infolist $infolist): Infolist
     {
         return $infolist
             ->schema([
+                // Sale Information section with ID, dates, customer, user, and notes
                 \Filament\Infolists\Components\Section::make('Sale Information')
                     ->schema([
                         Grid::make(3)
@@ -409,25 +305,24 @@ class SaleResource extends Resource
                                     ->badge()
                                     ->color('success'),
                             ]),
+
                         Grid::make(1)
                             ->schema([
                                 TextEntry::make('note')
                                     ->label('Notes')
                                     ->html()
-                                    ->extraAttributes([
-                                        'class' => 'p-4 bg-gray-50 rounded-lg',
-                                    ])
-                            ])
-
+                                    ->extraAttributes(['class' => 'p-4 bg-gray-50 rounded-lg']),
+                            ]),
                     ])
                     ->columns(1),
 
+                // Sale Items section to display each item with details and calculations
                 \Filament\Infolists\Components\Section::make('Sale Items')
                     ->schema([
                         RepeatableEntry::make('items')
                             ->schema([
                                 Split::make([
-                                    Grid::make(4)
+                                    Grid::make(5)
                                         ->schema([
                                             TextEntry::make('product.name')
                                                 ->label('Product')
@@ -444,42 +339,59 @@ class SaleResource extends Resource
                                                 ->money('USD')
                                                 ->icon('heroicon-o-currency-dollar'),
 
-                                            TextEntry::make('sub_total')
-                                                ->label('Sub Total')
+                                            TextEntry::make('discount.value')
+                                                ->label('Discount')
+                                                ->formatStateUsing(function ($state, $record) {
+                                                    // Format discount with % if percent type, else dollar amount
+                                                    if ($record->discount?->ispercent == '1') {
+                                                        return $state . '%';
+                                                    }
+                                                    return '-$' . number_format($state, 2);
+                                                }),
+
+                                            TextEntry::make('discount.value')
+                                                ->label('Total')
                                                 ->money('USD')
                                                 ->weight(FontWeight::Bold)
                                                 ->color('success')
                                                 ->state(function ($record) {
-                                                    return $record->qty * $record->unit_price;
+                                                    $qty = $record->qty ?? 0;
+                                                    $unitPrice = $record->unit_price ?? 0;
+                                                    $discountValue = $record->discount->value ?? 0;
+                                                    $isPercent = $record->discount->ispercent ?? '0';
+                                                    $subtotal = $qty * $unitPrice;
+
+                                                    if ($isPercent == '1') {
+                                                        return $subtotal - ($subtotal * ($discountValue / 100));
+                                                    } else {
+                                                        return $subtotal - ($discountValue * $qty);
+                                                    }
                                                 }),
                                         ]),
-                                ])
+                                ]),
                             ])
                             ->contained(false)
                             ->hiddenLabel(),
 
                         Grid::make(4)
                             ->schema([
-                                // TextEntry::make('total_items')
-                                //     ->label('Total Items')
-                                //     ->state(function ($record) {
-                                //         return $record->items->sum('qty');
-                                //     })
-                                //     ->badge()
-                                //     ->color('info')
-                                //     ->icon('heroicon-o-list-bullet'),
-                                TextEntry::make('d')
-                                    ->label(''),
-                                TextEntry::make('s')
-                                    ->label(''),
-                                TextEntry::make('x')
-                                    ->label(''),
-
                                 TextEntry::make('total_amount')
-                                    ->label('Total Amount')
+                                    ->label('Sub Total')
                                     ->state(function ($record) {
+                                        // Sum all items subtotals after discount
                                         return $record->items->sum(function ($item) {
-                                            return $item->qty * $item->unit_price;
+                                            $qty = $item->qty ?? 0;
+                                            $unitPrice = $item->unit_price ?? 0;
+                                            $discountValue = $item->discount->value ?? 0;
+                                            $isPercent = $item->discount->ispercent ?? '0';
+
+                                            $subtotal = $qty * $unitPrice;
+
+                                            if ($isPercent == '1') {
+                                                return $subtotal - ($subtotal * ($discountValue / 100));
+                                            } else {
+                                                return $subtotal - ($discountValue * $qty);
+                                            }
                                         });
                                     })
                                     ->money('USD')
@@ -487,58 +399,57 @@ class SaleResource extends Resource
                                     ->weight(FontWeight::Bold)
                                     ->color('success')
                                     ->icon('heroicon-o-currency-dollar'),
-                            ])
+                            ]),
                     ])
                     ->collapsible(),
+
+                // Print receipt button aligned right
+                Grid::make()
+                    ->schema([
+                        TextEntry::make('print_button')
+                            ->label('')
+                            ->html()
+                            ->state(function ($record) {
+                                return '<div style="text-align: right;">
+                                    <a href="' . route('receipt.print', ['sale' => $record->id]) . '" target="_blank"
+                                        style="background-color:rgb(43, 179, 64); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                                        🖨️ Print Receipt
+                                    </a>
+                                </div>';
+                            })
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
-    // // Alternative compact version for list views or smaller displays
-    // public function compactInfolist(Infolist $infolist): Infolist
-    // {
-    //     return $infolist
-    //         ->schema([
-    //             Split::make([
-    //                 Grid::make(2)
-    //                     ->schema([
-    //                         TextEntry::make('customer.name')
-    //                             ->label('Customer')
-    //                             ->weight(FontWeight::SemiBold),
-
-    //                         TextEntry::make('sale_date')
-    //                             ->label('Date')
-    //                             ->date('d/m/Y'),
-    //                     ]),
-
-    //                 TextEntry::make('total_amount')
-    //                     ->label('Total')
-    //                     ->state(function ($record) {
-    //                         return $record->items->sum(function ($item) {
-    //                             return $item->qty * $item->unit_price;
-    //                         });
-    //                     })
-    //                     ->money('USD')
-    //                     ->weight(FontWeight::Bold)
-    //                     ->color('success')
-    //                     ->grow(false),
-    //             ])
-    //         ]);
-    // }
-
+    /**
+     * No custom relations defined currently
+     */
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
+    /**
+     * Define page routes and their classes
+     */
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListSales::route('/'),
             'create' => Pages\CreateSale::route('/create'),
-            // 'view' => Pages\ViewSale::route('/{record}'),
+            'view2' => Pages\ViewSale::route('/{record}'),
             'edit' => Pages\EditSale::route('/{record}/edit'),
+        ];
+    }
+
+    /**
+     * Define any widgets shown in the resource view
+     */
+    public static function getWidgets(): array
+    {
+        return [
+            Salestats::class,
         ];
     }
 }

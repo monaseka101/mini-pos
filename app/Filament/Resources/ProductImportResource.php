@@ -11,6 +11,7 @@ use Filament\Forms;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
+use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\Split;
@@ -22,6 +23,15 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
+use App\Enums\Role;
+use Filament\Facades\Filament;
+
+
+use App\Exports\ProductImportItemsExport;
+use App\Filament\Resources\ProductImportResource\Pages\EditProductImport;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Select;
 
 class ProductImportResource extends Resource
 {
@@ -57,32 +67,39 @@ class ProductImportResource extends Resource
                         Repeater::make('items')
                             ->relationship()
                             ->schema([
-                                Forms\Components\Select::make('product_id')
+                                Select::make('product_id')
                                     ->label('Product')
                                     ->relationship('product', 'name', fn($query) => $query->where('active', true))
                                     ->preload()
                                     ->required()
                                     ->distinct()
                                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+                                    ->searchable()
+                                    ->reactive()
+                                    ->afterStateUpdated(function (callable $set, $state) {
+                                        $price = \App\Models\Product::find($state)?->price ?? 0;
+                                        $set('product_price', $price);
+                                    }),
 
-                                    ->searchable(),
-
-                                Forms\Components\TextInput::make('qty')
+                                TextInput::make('qty')
                                     ->label('Quantity')
                                     ->numeric()
                                     ->default(1)
                                     ->minValue(1)
                                     ->required(),
 
-                                Forms\Components\TextInput::make('unit_price')
+                                TextInput::make('unit_price')
                                     ->label('Unit Price')
                                     ->prefix('$')
                                     ->required(),
+
+                                TextInput::make('product_price')
+                                    ->label('Current Price')
+                                    ->disabled()
+                                    ->dehydrated(false) // prevents it from being saved to DB
+                                    ->prefix('$')
                             ])
-                            ->orderColumn('')
-                            ->defaultItems(1)
-                            ->hiddenLabel()
-                            ->columns(3)
+                            ->columns(4)
                             ->required()
                     ])
             ]);
@@ -176,14 +193,6 @@ class ProductImportResource extends Resource
 
                         Grid::make(4)
                             ->schema([
-                                // TextEntry::make('total_items')
-                                //     ->label('Total Items')
-                                //     ->state(function ($record) {
-                                //         return $record->items->sum('qty');
-                                //     })
-                                //     ->badge()
-                                //     ->color('info')
-                                //     ->icon('heroicon-o-list-bullet'),
                                 TextEntry::make('d')
                                     ->label(''),
                                 TextEntry::make('s')
@@ -249,14 +258,34 @@ class ProductImportResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->hidden(fn() => ! EditProductImport::canEdit()),
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(fn() => ! EditProductImport::canEdit()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->hidden(fn() => ! EditProductImport::canEdit()),
                 ]),
-            ]);
+            ])
+            ->HeaderActions([
+                Tables\Actions\Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductImportItemsExport, 'productsImport.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Tables\Actions\Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductImportItemsExport, 'productsImport.xlsx');
+                    }),
+            ])
+            ->recordUrl(function (ProductImport $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditProductImport::getUrl(['record' => $record])
+                    : null;
+            });
     }
 
     public static function getRelations(): array
@@ -273,5 +302,16 @@ class ProductImportResource extends Resource
             'create' => Pages\CreateProductImport::route('/create'),
             'edit' => Pages\EditProductImport::route('/{record}/edit'),
         ];
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            \App\Filament\Resources\ProductImportResource\Widgets\Importstats::class,
+        ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

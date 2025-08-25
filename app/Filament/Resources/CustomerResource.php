@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Gender;
+use App\Enums\Role;
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Filament\Resources\CustomerResource\RelationManagers;
 use App\Models\Customer;
@@ -19,6 +20,12 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Actions\Action;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\CustomerExport;
+use Filament\Facades\Filament;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CustomerResource extends Resource
 {
@@ -47,10 +54,7 @@ class CustomerResource extends Resource
                     ->maxLength(20)
                     ->prefixIcon('heroicon-m-phone')
                     ->placeholder('096-234-2345'),
-                Forms\Components\DatePicker::make('date_of_birth')
-                    ->date()
-                    ->label('Date of Birth')
-                    ->prefixIcon('heroicon-m-calendar-days'),
+
                 Forms\Components\TextInput::make('address')
                     ->label('Street Address')
                     ->maxLength(255)
@@ -66,6 +70,7 @@ class CustomerResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id'),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
@@ -114,7 +119,25 @@ class CustomerResource extends Resource
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
                     ->action(fn(Collection $records) => $records->each->update(['active' => false])),
-            ]);
+            ])
+            ->headerActions([
+                Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new CustomerExport, 'customer.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new CustomerExport, 'customer.xlsx');
+                    }),
+            ])
+            ->recordUrl(function (Customer $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditCustomer::getUrl(['record' => $record])
+                    : null;
+            });
     }
 
     public static function infolist(Infolist $infolist): Infolist
@@ -145,36 +168,6 @@ class CustomerResource extends Resource
                                 ->badge()
                                 ->color('gray'),
                         ]),
-                        Grid::make(4)
-                        ->schema([
-                            // TextEntry::make('total_items')
-                            //     ->label('Total Items')
-                            //     ->state(function ($record) {
-                            //         return $record->items->sum('qty');
-                            //     })
-                            //     ->badge()
-                            //     ->color('info')
-                            //     ->icon('heroicon-o-list-bullet'),
-                            TextEntry::make('d')
-                                ->label(''),
-                            TextEntry::make('s')
-                                ->label(''),
-                            TextEntry::make('x')
-                                ->label(''),
-
-                            TextEntry::make('total_amount')
-                                ->label('Total Amount')
-                                ->state(function ($record) {
-                                    return $record->items->sum(function ($item) {
-                                        return $item->qty * $item->unit_price;
-                                    });
-                                })
-                                ->money('USD')
-                                ->size('lg')
-                                ->weight(FontWeight::Bold)
-                                ->color('success')
-                                ->icon('heroicon-o-currency-dollar'),
-                        ])
                     ]),
 
                 Section::make('Contact Details')

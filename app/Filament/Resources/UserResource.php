@@ -17,6 +17,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Log;
+use App\Filament\Resources\FontWeight;
+use App\Filament\Resources\UserResource\Pages\EditUser;
+use Filament\Support\Enums\FontWeight as EnumsFontWeight;
+use Filament\Tables\Columns\Layout\Stack;
+use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class UserResource extends Resource
 {
@@ -61,61 +67,66 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('avatar_url')
-                    ->defaultImageUrl(fn(User $record) => User::getDefaultAvatar($record->name))
-                    ->label('Avatar')
-                    ->circular(),
-                Tables\Columns\TextColumn::make('name')
-                    ->sortable()
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('email')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('role')
-                    ->badge()
-                    ->color(function ($state) {
-                        return $state->getColor();
-                    }),
-                Tables\Columns\IconColumn::make('active')
-                    ->boolean(),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime('d/m/y h:m:s')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('role')
-                    ->options(Role::class),
-                Tables\Filters\TernaryFilter::make('active')
-                    ->label('Status')
-                    ->placeholder('All Users')
-                    ->trueLabel('Active Users')
-                    ->falseLabel('Inactive Users'),
+                Stack::make([
+                    Tables\Columns\ImageColumn::make('avatar_url')
+                        ->defaultImageUrl(fn(User $record) => User::getDefaultAvatar($record->name))
+                        ->circular(),
+                    Tables\Columns\TextColumn::make('name')
+                        ->searchable()
+                        ->weight(EnumsFontWeight::Bold)
+                    /* ->formatStateUsing(fn($record) => $record->name . ' (' . $record->role->name . ')') */,
+                    Tables\Columns\TextColumn::make('email'),
+                    Tables\Columns\IconColumn::make('active')
+                        ->boolean(),
+                ])
+                    ->alignCenter()
+                    ->space(2)
+
             ])
             ->actions([
-                Tables\Actions\Action::make('edit')
-                    ->url(fn($record) => UserResource::getUrl('edit', ['record' => $record]))
-                    ->icon('heroicon-m-pencil-square')
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkAction::make('activate')
-                    ->requiresConfirmation()
-                    ->label('Activate Selected')
+                Tables\Actions\Action::make('activate')
+                    ->button()
+                    ->label('Activate')
                     ->icon('heroicon-m-check-circle')
                     ->color('success')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-                Tables\Actions\BulkAction::make('deactivate')
-                    ->requiresConfirmation()
-                    ->label('Deactivate Selected')
+                    ->hidden(fn(User $record) => !EditUser::canEdit() || $record->role === Role::Admin)
+                    ->authorize(fn() => Filament::auth()->user()->role === Role::Admin)
+                    ->action(fn(User $record) => $record->update(['active' => true])),
+
+                Tables\Actions\Action::make('deactivate')
+                    ->button()
+                    ->label('Deactivate')
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+                    ->hidden(fn(User $record) => !EditUser::canEdit() || $record->role === Role::Admin)
+                    ->authorize(fn() => Filament::auth()->user()->role === Role::Admin)
+                    ->action(fn(User $record) => $record->update(['active' => false])),
             ])
-            ->defaultSort('active', 'desc');
+            ->recordUrl(function (User $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditUser::getUrl(['record' => $record])
+                    : null;
+            })
+
+
+
+            /* ->bulkActions([
+                Tables\Actions\BulkAction::make('activate')
+                    ->button()
+                    ->label('Activate')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->hidden(fn() => ! Edituser::canEdit())
+                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+            ]) */
+            ->contentGrid(
+                [
+                    'md' => 2,
+                    'xl' => 3,
+                ]
+            );
     }
+
 
     public static function getRelations(): array
     {
@@ -131,5 +142,9 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

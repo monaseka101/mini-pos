@@ -27,6 +27,15 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\Split;
 use Filament\Support\Enums\FontWeight;
+use Filament\Tables\Actions\Action;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\productExport;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use App\Enums\Role;
+use App\Filament\Resources\ProductResource\Pages\EditProduct;
+use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Auth;
 
 use function Laravel\Prompts\table;
 
@@ -39,6 +48,7 @@ class ProductResource extends Resource
     protected static ?string $recordTitleAttribute = 'name';
 
     protected static ?string $navigationGroup = 'Inventory';
+
 
     public static function form(Form $form): Form
     {
@@ -139,9 +149,10 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->size(60)
+                    ->size(80)
                     ->defaultImageUrl(fn($record) => Util::getDefaultAvatar($record->name)),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
@@ -204,21 +215,44 @@ class ProductResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                //->hidden(fn() => ! EditProduct::canEdit()),
+                Tables\Actions\EditAction::make()
+                    ->hidden(fn() => ! EditProduct::canEdit()),
+
             ])
             ->bulkActions([
                 Tables\Actions\BulkAction::make('activate')
                     ->label('Activate Selected')
                     ->icon('heroicon-m-check-circle')
                     ->color('success')
+                    ->hidden(fn() => ! EditProduct::canEdit())
                     ->action(fn(Collection $records) => $records->each->update(['active' => true])),
                 Tables\Actions\BulkAction::make('deactivate')
                     ->label('Deactivate Selected')
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
+                    ->hidden(fn() => ! EditProduct::canEdit())
                     ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ])
-            ->defaultSort('active', 'desc');
+            ->HeaderActions([
+                Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductExport, 'products.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductExport, 'products.xlsx');
+                    }),
+            ])
+            ->defaultSort('active', 'desc')
+            ->recordUrl(function (Product $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditProduct::getUrl(['record' => $record])
+                    : null;
+            });
     }
 
     public static function getWidgets(): array
@@ -239,8 +273,8 @@ class ProductResource extends Resource
                             ImageEntry::make('image')
                                 ->defaultImageUrl(fn(Product $record) => Util::getDefaultAvatar($record->name))
                                 ->label('Product Image')
-                                ->height(250)
-                                ->width(250)
+                                ->height(260)
+                                ->width(330)
                                 ->extraImgAttributes(['class' => 'rounded-xl shadow-lg']),
 
                             InfoGrid::make(1)
@@ -288,8 +322,12 @@ class ProductResource extends Resource
                 InfoSection::make('Additional Information')
                     ->icon('heroicon-m-information-circle')
                     ->schema([
-                        InfoGrid::make(4)
+                        InfoGrid::make(5)
                             ->schema([
+                                TextEntry::make('id')
+                                    ->label('ID')
+                                    ->badge()
+                                    ->color('info'),
                                 TextEntry::make('category.name')
                                     ->label('Category')
                                     ->badge()
@@ -329,5 +367,9 @@ class ProductResource extends Resource
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

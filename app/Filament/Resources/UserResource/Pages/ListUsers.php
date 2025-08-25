@@ -5,9 +5,6 @@ namespace App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-// use Illuminate\Contracts\Database\Eloquent\Builder;
-use Filament\Resources\Components\Tab;
-use Illuminate\Database\Eloquent\Builder;
 
 class ListUsers extends ListRecords
 {

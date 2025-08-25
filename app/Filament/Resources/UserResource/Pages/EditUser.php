@@ -4,17 +4,15 @@ namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Enums\Role;
 use App\Filament\Resources\UserResource;
-use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
-
-
 
     public function form(Form $form): Form
     {
@@ -48,6 +46,10 @@ class EditUser extends EditRecord
     {
         Log::info($data);
         return $data;
+    }
+    public static function CanEdit(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 
 

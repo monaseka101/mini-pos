@@ -30,6 +30,9 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
         'avatar_url',
         'password',
     ];
+    protected $casts = [
+        'role' => Role::class,
+    ];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -67,13 +70,32 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
         return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
     }
 
+    // php artisan vendor:publish --tag=filament-config
+
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        // Only allow active users to access the admin panel
+        return $this->active == true;
     }
 
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+
+    public function getRoleEnum(): ?Role
+    {
+        if (!isset($this->role)) {
+            return null;
+        }
+
+        // If it's already a Role enum, return it directly
+        if ($this->role instanceof Role) {
+            return $this->role;
+        }
+
+        // Otherwise, convert string to enum
+        return Role::from($this->role);
     }
 }

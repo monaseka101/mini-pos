@@ -2,9 +2,7 @@
 
 namespace App\Filament\Resources\SaleResource\Pages;
 
-use App\Filament\Resources\CustomerResource;
 use App\Filament\Resources\SaleResource;
-use App\Filament\Resources\SupplierResource;
 use Filament\Actions;
 use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -19,11 +17,15 @@ class ViewSale extends ViewRecord
 {
     protected static string $resource = SaleResource::class;
 
+    /**
+     * Configure the Infolist layout and fields shown on the page
+     */
     public function infolist(Infolist $infolist): Infolist
     {
         return $infolist
             ->schema([
-                \Filament\Infolists\Components\Section::make('Sale Information')
+                // Section: General sale information
+                Section::make('Sale Information')
                     ->schema([
                         Grid::make(3)
                             ->schema([
@@ -56,23 +58,23 @@ class ViewSale extends ViewRecord
                                     ->copyable()
                                     ->copyMessage('Phone number copied!')
                                     ->placeholder('No phone number'),
+
                                 TextEntry::make('user.name')
                                     ->label('Created by')
                                     ->icon('heroicon-o-user-circle')
                                     ->badge()
                                     ->color('success'),
                             ]),
-
-
                     ])
                     ->columns(1),
 
-                \Filament\Infolists\Components\Section::make('Sale Items')
+                // Section: Sale items details with repeatable entries for each item
+                Section::make('Sale Items')
                     ->schema([
                         RepeatableEntry::make('items')
                             ->schema([
                                 Split::make([
-                                    Grid::make(4)
+                                    Grid::make(5)
                                         ->schema([
                                             TextEntry::make('product.name')
                                                 ->label('Product')
@@ -89,42 +91,65 @@ class ViewSale extends ViewRecord
                                                 ->money('USD')
                                                 ->icon('heroicon-o-currency-dollar'),
 
-                                            TextEntry::make('sub_total')
-                                                ->label('Sub Total')
+                                            // Discount display, formatted as percent or fixed amount
+                                            TextEntry::make('discount.value')
+                                                ->label('Discount')
+                                                ->formatStateUsing(function ($state, $record) {
+                                                    if ($record->discount?->ispercent == '1') {
+                                                        return $state . '%';
+                                                    }
+                                                    return '-$' . number_format($state, 2);
+                                                }),
+
+                                            // Total price after discount per item
+                                            TextEntry::make('discount.value')
+                                                ->label('Total')
                                                 ->money('USD')
                                                 ->weight(FontWeight::Bold)
                                                 ->color('success')
                                                 ->state(function ($record) {
-                                                    return $record->qty * $record->unit_price;
+                                                    $qty = $record->qty ?? 0;
+                                                    $unitPrice = $record->unit_price ?? 0;
+                                                    $discountValue = $record->discount->value ?? 0;
+                                                    $isPercent = $record->discount->ispercent ?? '0';
+                                                    $subtotal = $qty * $unitPrice;
+
+                                                    if ($isPercent == '1') {
+                                                        return $subtotal - ($subtotal * ($discountValue / 100));
+                                                    } else {
+                                                        return $subtotal - ($discountValue * $qty);
+                                                    }
                                                 }),
                                         ]),
-                                ])
+                                ]),
                             ])
                             ->contained(false)
                             ->hiddenLabel(),
 
+                        // Summary grid (you have placeholders 'd', 's', 'x'—consider removing or repurposing)
                         Grid::make(4)
                             ->schema([
-                                // TextEntry::make('total_items')
-                                //     ->label('Total Items')
-                                //     ->state(function ($record) {
-                                //         return $record->items->sum('qty');
-                                //     })
-                                //     ->badge()
-                                //     ->color('info')
-                                //     ->icon('heroicon-o-list-bullet'),
-                                TextEntry::make('d')
-                                    ->label(''),
-                                TextEntry::make('s')
-                                    ->label(''),
-                                TextEntry::make('x')
-                                    ->label(''),
+                                TextEntry::make('d')->label(''), // Placeholder, can be removed
+                                TextEntry::make('s')->label(''), // Placeholder, can be removed
+                                TextEntry::make('x')->label(''), // Placeholder, can be removed
 
+                                // Subtotal for all items after discount
                                 TextEntry::make('total_amount')
-                                    ->label('Total Amount')
+                                    ->label('Sub Total')
                                     ->state(function ($record) {
                                         return $record->items->sum(function ($item) {
-                                            return $item->qty * $item->unit_price;
+                                            $qty = $item->qty ?? 0;
+                                            $unitPrice = $item->unit_price ?? 0;
+                                            $discountValue = $item->discount->value ?? 0;
+                                            $isPercent = $item->discount->ispercent ?? '0';
+
+                                            $subtotal = $qty * $unitPrice;
+
+                                            if ($isPercent == '1') {
+                                                return $subtotal - ($subtotal * ($discountValue / 100));
+                                            } else {
+                                                return $subtotal - ($discountValue * $qty);
+                                            }
                                         });
                                     })
                                     ->money('USD')
@@ -132,11 +157,12 @@ class ViewSale extends ViewRecord
                                     ->weight(FontWeight::Bold)
                                     ->color('success')
                                     ->icon('heroicon-o-currency-dollar'),
-                            ])
+                            ]),
                     ])
                     ->collapsible(),
 
-                \Filament\Infolists\Components\Section::make('Additional Information')
+                // Section: Additional notes for the sale
+                Section::make('Additional Information')
                     ->schema([
                         TextEntry::make('note')
                             ->label('Notes')
@@ -149,8 +175,9 @@ class ViewSale extends ViewRecord
             ]);
     }
 
-
-
+    /**
+     * Actions available in the page header (e.g., edit button)
+     */
     protected function getHeaderActions(): array
     {
         return [
