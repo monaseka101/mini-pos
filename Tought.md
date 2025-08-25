@@ -32,3 +32,65 @@ public function up(): void
         $table->timestamps();
     });
 }
+
+### Dashboard widget charts ideas
+Great! For a **POS (Point of Sale) Dashboard**, here's a curated list of **high-impact charts** you can use — grouped by type and priority — along with suggestions to avoid overwhelming the dashboard.
+
+---
+
+### 🔝 **Essential Charts (Top Priority — always visible)**
+
+| Chart                                      | Type                           | Description                                                  |
+| ------------------------------------------ | ------------------------------ | ------------------------------------------------------------ |
+| **Total Sales (Last 30 Days)**             | Line / Bar                     | Shows daily revenue trend — highlights growth or drops.      |
+| **Top Selling Products**                   | Horizontal Bar                 | Reveals best-performing items. Great for inventory planning. |
+| **Sales by Category**                      | Pie / Doughnut                 | Visual breakdown of product types (e.g., food, drinks).      |
+| **Monthly Sales Summary**                  | Bar                            | Compares sales across months (usually this year).            |
+| **Revenue Today / This Week / This Month** | Stat Cards / Small Line Charts | Quick KPIs with totals.                                      |
+
+---
+
+### 📊 **Secondary Charts (Optional or Tabbed)**
+
+| Chart                          | Type          | Description                                    |
+| ------------------------------ | ------------- | ---------------------------------------------- |
+| **Sales by Payment Type**      | Pie           | Breakdown of cash vs card vs digital payments. |
+| **Sales by Location / Branch** | Bar / Map     | If your POS has multiple locations.            |
+| **Customer Visit Trend**       | Line          | If you track customer visits or orders.        |
+| **Hourly Sales Distribution**  | Heatmap / Bar | Shows busiest times of day.                    |
+| **Discounts Given**            | Bar           | Track how discounts affect revenue.            |
+
+---
+
+### 🧠 **Smart Layout Tips**
+
+* Use `StatOverviewWidget` at the top for:
+
+  * Total Revenue Today
+  * Total Orders Today
+  * Average Sale Value
+* Use `ChartWidget` below for trends.
+* Group secondary charts in **tabs** or a collapsible section.
+* Filter data using:
+
+  * Year selector
+  * Month selector
+  * Product/category dropdown
+
+---
+
+### 🧱 Recommended Layout (Wireframe)
+
+```
+[ Stat Cards ]
+--------------------------
+| Line Chart (30d Trend) |
+--------------------------
+| Bar (Top Products)     | Pie (Sales by Category) |
+--------------------------
+[ Tabs: {Location} {Time} {Payment Method} ]
+```
+
+---
+
+If you'd like, I can help write the code structure for these widgets using **Filament** and **Laravel Trend**, tailored to your schema. Just say the word!

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\SaleResource\Widgets\SaleStats;
 use App\Models\Sale;
 use App\Models\Customer;
 use App\Models\Product;
@@ -155,6 +156,8 @@ class SaleResource extends Resource
                     // ])
                     ->required(),
 
+                Forms\Components\TextInput::make('discount')
+                    ->default(0),
                 Forms\Components\TextInput::make('available_stock')
                     ->label('In Stock')
                     ->disabled()
@@ -173,8 +176,15 @@ class SaleResource extends Resource
             ->orderColumn('')
             ->defaultItems(1)
             ->hiddenLabel()
-            ->columns(4)
+            ->columns(5)
             ->required();
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            SaleStats::class
+        ];
     }
 
     // public static function table(Table $table): Table
@@ -292,6 +302,7 @@ class SaleResource extends Resource
                     ->getStateUsing(fn(Sale $record) => $record->totalPrice())
                     ->sortable()
                     ->badge()
+                    ->color('success')
                     ->toggleable(),
 
                 // Tables\Columns\IconColumn::make('active')
@@ -304,14 +315,26 @@ class SaleResource extends Resource
                     ->dateTooltip('d/M/Y')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('user.name')
-                    ->label('Sold By')
+                    ->searchable()
+                    ->label('Sold By'),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Created At')
+                    ->sortable()
+                    ->dateTime('d/m/Y')
+                    ->dateTooltip('d/M/Y')
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('customer')
                     ->preload()
                     ->searchable()
                     ->multiple()
-                    ->relationship('customer', 'name'),
+                    ->relationship('customer', titleAttribute: 'name'),
+                Tables\Filters\SelectFilter::make('Seller')
+                    ->preload()
+                    ->searchable()
+                    ->multiple()
+                    ->relationship('user', 'name'),
                 // Tables\Filters\Filter::make('sale_date')
                 //     ->form([
                 //         DatePicker::make('from')
@@ -405,18 +428,21 @@ class SaleResource extends Resource
                         RepeatableEntry::make('items')
                             ->schema([
                                 Split::make([
-                                    Grid::make(4)
+                                    Grid::make(5)
                                         ->schema([
                                             TextEntry::make('product.name')
                                                 ->label('Product')
                                                 ->weight(FontWeight::SemiBold)
                                                 ->icon('heroicon-o-cube'),
-
                                             TextEntry::make('qty')
                                                 ->label('Quantity')
                                                 ->badge()
-                                                ->color('info'),
-
+                                                ->color('primary'),
+                                            TextEntry::make('discount')
+                                                ->getStateUsing(fn($record) => $record->discount ?? 0)
+                                                ->prefix('%')
+                                                ->badge()
+                                                ->color('primary'),
                                             TextEntry::make('unit_price')
                                                 ->label('Unit Price')
                                                 ->money('USD')
@@ -426,7 +452,7 @@ class SaleResource extends Resource
                                                 ->label('Sub Total')
                                                 ->money('USD')
                                                 ->weight(FontWeight::Bold)
-                                                ->color('success')
+                                                // ->color('success')
                                                 ->state(function ($record) {
                                                     return $record->qty * $record->unit_price;
                                                 }),
@@ -436,13 +462,15 @@ class SaleResource extends Resource
                             ->contained(false)
                             ->hiddenLabel(),
 
-                        Grid::make(4)
+                        Grid::make(5)
                             ->schema([
                                 TextEntry::make('d')
                                     ->label(''),
                                 TextEntry::make('s')
                                     ->label(''),
                                 TextEntry::make('x')
+                                    ->label(''),
+                                TextEntry::make('p')
                                     ->label(''),
 
                                 TextEntry::make('total_amount')

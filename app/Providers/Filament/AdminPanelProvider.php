@@ -41,9 +41,12 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearch(false)
             ->path('admin')
             ->login(Login::class)
+            ->passwordReset()
+            ->registration()
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->sidebarFullyCollapsibleOnDesktop()
             ->sidebarWidth('16rem')
             ->navigationGroups([
                 NavigationGroup::make('Inventory'),

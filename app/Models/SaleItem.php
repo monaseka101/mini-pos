@@ -11,7 +11,7 @@ class SaleItem extends Model
     /** @use HasFactory<\Database\Factories\SaleItemFactory> */
     use HasFactory;
 
-    public function sale() : BelongsTo
+    public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
     }
@@ -23,6 +23,10 @@ class SaleItem extends Model
 
     public function subTotal()
     {
-        return $this->qty * $this->unit_price;
+        $totalPrice = $this->qty * $this->unit_price;
+
+        $discountPrice = $totalPrice * ($this->discount / 100);
+
+        return $totalPrice - $discountPrice;
     }
 }

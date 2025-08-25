@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\ProductImportResource\Widgets\ProductImportChart;
+use App\Filament\Resources\SaleResource\Widgets\SaleActivityChart;
 use App\Filament\Resources\SaleResource\Widgets\SaleBrandChart;
 use App\Filament\Resources\SaleResource\Widgets\SaleChart;
 use Filament\Forms\Components\DatePicker;
@@ -30,8 +32,10 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            SaleActivityChart::class,
             SaleChart::class,
-            SaleBrandChart::class
+            ProductImportChart::class,
+            SaleBrandChart::class,
         ];
     }
 }

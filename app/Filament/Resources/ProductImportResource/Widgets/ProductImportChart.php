@@ -1,42 +1,36 @@
 <?php
 
-namespace App\Filament\Resources\SaleResource\Widgets;
+namespace App\Filament\Resources\ProductImportResource\Widgets;
 
+use App\Models\ProductImport;
 use App\Models\Sale;
-use App\Models\SaleItem;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
 use Flowframe\Trend\Trend;
 use Flowframe\Trend\TrendValue;
 
-class SaleChart extends ChartWidget
+class ProductImportChart extends ChartWidget
 {
-    protected static ?string $heading = 'Sales per month in a year.';
-
-    // protected static ?string $pollingInterval = '2s';
-
-    protected static ?int $sort = 1;
-
-    public ?string $filter = 'today';
+    protected static ?string $heading = 'Product imports per month in a year';
 
     protected function getData(): array
     {
         $data = Trend::query(
-            Sale::query()
-                ->join('sale_items as SI', 'sales.id', '=', 'SI.sale_id')
-            )
-            ->dateColumn('sale_date')
+            ProductImport::query()
+                ->join('product_import_items as PIT', 'product_imports.id', '=', 'PIT.product_import_id')
+        )
+            ->dateColumn('import_date')
             ->between(
                 start: now()->startOfYear(),
                 end: now()->endOfYear(),
             )
             ->perMonth()
-            ->sum('SI.qty * SI.unit_price');
+            ->sum('PIT.qty * PIT.unit_price');
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Sale Revenue',
+                    'label' => 'Product Import Value',
                     'data' => $data->map(fn(TrendValue $value) => $value->aggregate),
                     'tension' => 0.4,
                     'fill' => true,
@@ -51,14 +45,6 @@ class SaleChart extends ChartWidget
             'labels' => $data->map(
                 fn(TrendValue $value) => Carbon::parse($value->date)->format('M Y')
             ),
-        ];
-    }
-
-    protected function getFilters(): ?array
-    {
-        return [
-            '2025' => '2025',
-            '2024' => '2024',
         ];
     }
 

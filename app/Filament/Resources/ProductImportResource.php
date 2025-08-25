@@ -246,8 +246,15 @@ class ProductImportResource extends Resource
                     ->relationship('supplier', 'name')
                     ->preload()
                     ->searchable()
+                    ->multiple(),
+                Tables\Filters\SelectFilter::make('importer')
+                    ->relationship('user', 'name')
+                    ->preload()
+                    ->searchable()
                     ->multiple()
+
             ])
+            ->searchable()
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
@@ -263,7 +270,8 @@ class ProductImportResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array

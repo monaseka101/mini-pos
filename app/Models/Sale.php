@@ -26,6 +26,39 @@ class Sale extends Model
         );
     }
 
+    public static function totalSaleForToday()
+    {
+        return static::query()
+            ->whereDate('sale_date', today())
+            ->with('items')
+            ->get()
+            ->sum(function (Sale $sale) {
+                return $sale->totalPrice();
+            });
+    }
+
+    public static function totalSaleForThisMonth()
+    {
+        return static::query()
+            ->whereMonth('sale_date', now()->month)
+            ->whereYear('sale_date', now()->year)
+            ->with('items')
+            ->get()
+            ->sum(function (Sale $sale) {
+                return $sale->totalPrice();
+            });
+    }
+
+    public static function totalSaleForThisYear()
+    {
+        return static::query()
+            ->whereYear('sale_date', now()->year)
+            ->with('items')
+            ->get()
+            ->sum(function (Sale $sale) {
+                return $sale->totalPrice();
+            });
+    }
 
     public function user(): BelongsTo
     {

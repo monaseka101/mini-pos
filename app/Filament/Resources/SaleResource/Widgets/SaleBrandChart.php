@@ -56,6 +56,14 @@ class SaleBrandChart extends ChartWidget
         ];
     }
 
+    protected function getFilters(): ?array
+    {
+        return [
+            'brand' => 'Brand',
+            'Category' => 'Category',
+        ];
+    }
+
     protected function getType(): string
     {
         return 'pie';

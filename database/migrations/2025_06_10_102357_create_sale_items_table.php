@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
             $table->integer('qty');
             $table->decimal('unit_price', 10, 2);
-            $table->unsignedTinyInteger('discount')->nullable();
+            $table->integer('discount')->default(0)->nullable();
             $table->timestamps();
         });
     }

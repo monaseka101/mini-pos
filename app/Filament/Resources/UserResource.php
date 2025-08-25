@@ -67,6 +67,7 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query) => $query->where('id', '!=', auth()->id()))
             ->columns([
                 Stack::make([
                     Tables\Columns\ImageColumn::make('avatar_url')
