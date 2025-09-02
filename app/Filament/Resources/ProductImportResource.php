@@ -30,6 +30,7 @@ use Filament\Facades\Filament;
 
 use App\Exports\ProductImportItemsExport;
 use App\Filament\Resources\ProductImportResource\Pages\EditProductImport;
+use Filament\Forms\Components\DatePicker;
 use Maatwebsite\Excel\Facades\Excel;
 use Filament\Forms\Components\Select;
 
@@ -221,13 +222,16 @@ class ProductImportResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->url(fn($record) => SupplierResource::getUrl('supplier.view', ['record' => $record->supplier_id]), true)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')
                     ->getStateUsing(fn(ProductImport $record) => $record->totalPrice())
-                    ->sortable()
                     ->weight(FontWeight::Bold),
                 Tables\Columns\TextColumn::make('note')
                     ->toggleable(isToggledHiddenByDefault: true)
@@ -250,8 +254,31 @@ class ProductImportResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('import_date')
+                    ->form([
+                        DatePicker::make('start')->label('Start Date'),
+                        DatePicker::make('end')->label('End Date'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['start']) && !empty($data['end'])) {
+                            $query->whereBetween('import_date', [$data['start'], $data['end']]);
+                        } elseif (!empty($data['start'])) {
+                            $query->where('import_date', '>=', $data['start']);
+                        } elseif (!empty($data['end'])) {
+                            $query->where('import_date', '<=', $data['end']);
+                        }
+                    })
+                    ->default(fn() => [
+                        'start' => request()->get('startDate'),
+                        'end'   => request()->get('endDate'),
+                    ]),
                 Tables\Filters\SelectFilter::make('supplier')
                     ->relationship('supplier', 'name')
+                    ->preload()
+                    ->searchable()
+                    ->multiple(),
+                Tables\Filters\SelectFilter::make('user')
+                    ->relationship('user', 'name')
                     ->preload()
                     ->searchable()
                     ->multiple()

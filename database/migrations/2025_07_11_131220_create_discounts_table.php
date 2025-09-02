@@ -11,15 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('discounts', function (Blueprint $table) {
-            $table->tinyIncrements('id');
-            $table->string('name');
-            $table->integer('value');
-            $table->boolean('ispercent');
-            $table->boolean('active');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('discounts')) {
+            Schema::create('discounts', function (Blueprint $table) {
+                $table->tinyIncrements('id');
+                $table->string('name');
+                $table->integer('value');
+                $table->boolean('ispercent');
+                $table->boolean('active');
+                $table->timestamps();
+            });
+        }
     }
+
 
     /**
      * Reverse the migrations.

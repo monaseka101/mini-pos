@@ -9,6 +9,7 @@ use App\Helpers\Util;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImportItem;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -34,8 +35,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use App\Enums\Role;
 use App\Filament\Resources\ProductResource\Pages\EditProduct;
+use App\Models\ProductImport;
 use Filament\Facades\Filament;
+use Filament\Infolists\Components\RepeatableEntry;
 use Illuminate\Support\Facades\Auth;
+use Filament\Infolists\Components\TableEntry;
+
 
 use function Laravel\Prompts\table;
 
@@ -148,9 +153,16 @@ class ProductResource extends Resource
 
     public static function table(Table $table): Table
     {
+
         return $table
+            ->query(Product::withSoldCount())
+
 
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('image')
                     ->size(80)
                     ->defaultImageUrl(fn($record) => Util::getDefaultAvatar($record->name)),
@@ -181,7 +193,9 @@ class ProductResource extends Resource
                     ->badge()
                     ->color('info'),
                 Tables\Columns\IconColumn::make('active')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('user.name')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->label('Created By'),
@@ -189,6 +203,12 @@ class ProductResource extends Resource
                 //     fn ($record) => $record->user ? route('filament.admin.resources.users.view', ['record' => $record->user]) : null,
                 //     shouldOpenInNewTab: true
                 // ),
+
+                Tables\Columns\TextColumn::make('sale_items_sum_qty')
+                    ->label('Sold Count')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                // ... other columns
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -211,8 +231,26 @@ class ProductResource extends Resource
                     ->label('Status')
                     ->placeholder('All Products')
                     ->trueLabel('Active Products')
-                    ->falseLabel('Inactive Products')
+                    ->falseLabel('Inactive Products'),
+
+                /* Tables\Filters\SelectFilter::make('sale_filter')
+                    ->label('Sale Filter')
+                    ->options([
+                        'all'   => 'All Products',
+                        'top'   => 'Top Sold',
+                        'least' => 'Least Sold',
+                    ])
+                    ->default('all')
+                    ->query(function (Builder $query, $state) {
+                        if ($state === 'top') {
+                            $query->topSold();   // scopeTopSold
+                        } elseif ($state === 'least') {
+                            $query->leastSold(); // scopeLeastSold
+                        }
+                        // 'all' does nothing, show normal
+                    }), */
             ])
+
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 //->hidden(fn() => ! EditProduct::canEdit()),
@@ -247,7 +285,7 @@ class ProductResource extends Resource
                         return Excel::download(new ProductExport, 'products.xlsx');
                     }),
             ])
-            ->defaultSort('active', 'desc')
+            //->defaultSort('id', 'desc')
             ->recordUrl(function (Product $record) {
                 return Filament::auth()->user()->role === Role::Admin
                     ? Pages\EditProduct::getUrl(['record' => $record])
@@ -349,9 +387,47 @@ class ProductResource extends Resource
                             ]),
                     ])
                     ->collapsible(),
+
+                InfoSection::make('Import History')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->collapsible()
+                    ->schema([
+                        // Mini table / preview of recent imports (last 5)
+                        RepeatableEntry::make('productimportItems')
+                            ->label('')
+                            ->schema([
+                                InfoGrid::make(6)->schema([
+                                    TextEntry::make('productImport.id')->label('Import ID'),
+                                    TextEntry::make('productImport.supplier.name')->label('Supplier'),
+                                    TextEntry::make('qty')->label('Quantity'),
+                                    TextEntry::make('unit_price')->label('Bought Price')->money('usd'),
+                                    TextEntry::make('productImport.import_date')->label('Import Date')->date('d/m/Y'),
+                                    TextEntry::make('productImport.user.name')->label('Imported By'),
+                                ]),
+                            ])
+                            ->columns(1)
+                            ->default(fn($record) => $record->productimportItems->take(5)),
+
+                    ]),
+                InfoSection::make('')
+                    ->schema([ // Button linking to full DetailPage
+                        InfoGrid::make(1)->schema([
+                            TextEntry::make('view_full_import_history')
+                                ->label('')
+                                ->html()
+                                ->state(fn($record) => '
+            <div style="text-align: right;">
+                <a href="' . \App\Filament\Pages\DetailPage::getUrl() . '?product_id=' . $record->id . '" target="_blank"
+                    style="background-color: rgb(59, 130, 246); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                    📄 View Full Import History
+                </a>
+            </div>
+        ')
+                                ->columnSpanFull(),
+                        ]),
+                    ]),
             ]);
     }
-
 
     public static function getRelations(): array
     {

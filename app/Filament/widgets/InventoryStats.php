@@ -19,11 +19,11 @@ class InventoryStats extends BaseWidget
                 ->color('info')
                 ->description(' '),
 
-            Stat::make('Product Inventory', Product::sum('stock'))
+            Stat::make('Product Stocks', Product::sum('stock'))
                 ->chart([27, 27])
                 ->color('info'),
 
-            Stat::make('Total Inventory Value', function (): string {
+            Stat::make('Total Stocks Value', function (): string {
                 $value = Product::select(DB::raw('SUM(stock * price) as total_value'))
                     ->value('total_value');
 

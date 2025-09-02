@@ -33,7 +33,7 @@ class CustomerResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-m-user-group';
 
-    protected static ?string $navigationGroup = 'Customer & Supplier';
+    protected static ?string $navigationGroup = 'People';
 
     protected static ?string $recordTitleAttribute = 'name';
 

@@ -2,117 +2,65 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Resources\SaleResource\Pages\ListSales;
-use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Carbon\Carbon;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class SaleStats extends BaseWidget
 {
-    use InteractsWithPageTable;
+    use InteractsWithPageFilters; // sync with Dashboard filters
 
     protected static ?string $pollingInterval = null;
 
-    /**
-     * Links this widget to the ListSales page for table interactions
-     */
-    protected function getTablePage(): string
-    {
-        return ListSales::class;
-    }
-
-    /**
-     * Returns the stats displayed in the widget
-     */
     protected function getStats(): array
     {
-        $today = Carbon::today();
+        $startDate = $this->filters['startDate'] ?? now()->startOfMonth();
+        $endDate   = $this->filters['endDate'] ?? now();
 
-        // === BASIC SALES STATS ===
-        $totalSales = DB::table('sales')->count();
-        $todaysSales = DB::table('sales')->whereDate('created_at', $today)->count();
+        $salesCount = DB::table('sales')
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->count();
 
-        // === TOTAL PROFIT: revenue - import cost ===
-        $saleTotal = DB::table('sales')
-            ->selectRaw('SUM(total_pay) as total')
-            ->value('total') ?? 0;
+        $revenue = DB::table('sales')
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->sum('total_pay');
 
-        $importTotal = DB::table('product_import_items')
+        $importCost = DB::table('product_import_items')
             ->join('product_imports', 'product_import_items.product_import_id', '=', 'product_imports.id')
+            ->whereBetween('product_imports.import_date', [$startDate, $endDate])
             ->selectRaw('SUM(qty * unit_price) as total')
             ->value('total') ?? 0;
 
-        $profit = $saleTotal - $importTotal;
-
-        // === MONTHLY COMPARISON SETUP ===
-        $now = now();
-        $startOfThisMonth = $now->copy()->startOfMonth();
-        $startOfLastMonth = $now->copy()->subMonth()->startOfMonth();
-        $endOfLastMonth = $now->copy()->subMonth()->endOfMonth();
-
-        // Sale count this vs. last month
-        $thisMonthSaleCount = DB::table('sales')->whereBetween('sale_date', [$startOfThisMonth, $now])->count();
-        $lastMonthSaleCount = DB::table('sales')->whereBetween('sale_date', [$startOfLastMonth, $endOfLastMonth])->count();
-
-        // Revenue this vs. last month
-        $thisMonthRevenue = DB::table('sales')
-            ->whereBetween('sale_date', [$startOfThisMonth, $now])
-            ->selectRaw('SUM(total_pay) as total')
-            ->value('total') ?? 0;
-
-        $lastMonthRevenue = DB::table('sales')
-            ->whereBetween('sale_date', [$startOfLastMonth, $endOfLastMonth])
-            ->selectRaw('SUM(total_pay) as total')
-            ->value('total') ?? 0;
-
-        // === REVENUE COMPARISON DESCRIPTION ===
-        $revenueDiff = $thisMonthRevenue - $lastMonthRevenue;
-        $description = 'No data from last month';
-        $descriptionColor = 'gray';
-
-        if ($lastMonthRevenue > 0) {
-            $prefix = $revenueDiff >= 0 ? '+' : '-';
-            $percent = number_format(abs($revenueDiff / $lastMonthRevenue * 100), 1);
-            $amount = number_format(abs($revenueDiff), 2);
-            $description = "{$prefix}$$amount ({$percent}%) than last month";
-            $descriptionColor = $revenueDiff >= 0 ? 'success' : 'danger';
-        }
-
-        // === SALE COUNT COMPARISON DESCRIPTION ===
-        $saleDiff = $thisMonthSaleCount - $lastMonthSaleCount;
-        $descriptionsale = 'No data from last month';
-
-        if ($lastMonthSaleCount > 0) {
-            $amount = number_format(abs($saleDiff), 0);
-            $descriptionsale = $saleDiff >= 0
-                ? "$amount more sale than last month"
-                : "Need $amount sale to even";
-        }
-
         return [
+            // Sales Count → link to new SalePage
+            Stat::make('Sales Count', number_format($salesCount))
 
-            // Monthly Sales Stat Box
-            Stat::make('This Month Sales', $thisMonthSaleCount)
-                ->chart([27, 27])
-                ->color($saleDiff >= 0 ? 'success' : 'danger')
-                ->description($descriptionsale),
+                ->url(route('filament.admin.pages.sale-page', [
+                    'startDate' => Carbon::parse($startDate)->toDateString(),
+                    'endDate'   => Carbon::parse($endDate)->toDateString(),
+                ]))
+                ->openUrlInNewTab(),
 
-            // Profit Box
-            Stat::make('Total Profit', '$' . number_format($profit, 2))
-                ->color($profit >= 0 ? 'success' : 'danger')
+            // Revenue → optional link to Sales resource
+            Stat::make('Revenue', '$' . number_format($revenue, 2))
+                ->url(route('filament.admin.pages.sale-page', [
+                    'startDate' => Carbon::parse($startDate)->toDateString(),
+                    'endDate'   => Carbon::parse($endDate)->toDateString(),
+                ]))
+                ->openUrlInNewTab()
                 ->icon('heroicon-o-currency-dollar')
-                ->chart([27, 27]),
+                ->color('success'),
 
-            // Revenue Box
-            Stat::make('This Month Revenue', '$' . number_format($thisMonthRevenue, 2))
-                ->color($thisMonthRevenue >= $lastMonthRevenue ? 'success' : 'danger')
+            // Import Cost → optional link to Product Imports resource
+            Stat::make('Import Cost', '$' . number_format($importCost, 2))
+                ->url(route('filament.admin.pages.import-page', [
+                    'startDate' => Carbon::parse($startDate)->toDateString(),
+                    'endDate'   => Carbon::parse($endDate)->toDateString(),
+                ]))
                 ->icon('heroicon-o-currency-dollar')
-                ->descriptionIcon($revenueDiff >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                ->chart([27, 27])
-                ->description($description)
-                ->descriptionColor($descriptionColor),
+                ->color('danger'),
         ];
     }
 }

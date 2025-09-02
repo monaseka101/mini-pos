@@ -30,6 +30,7 @@ class AdminPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
+            ->databaseNotifications()
             ->default()
             ->profile(EditProfile::class, isSimple: false)
             // ->brandName('TL Gold Computer')
@@ -39,20 +40,23 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearch(false)
             ->path('admin')
             ->login()
+            ->registration()
+            ->passwordReset()
             ->colors([
                 'primary' => Color::Blue,
             ])
             ->sidebarWidth('16rem')
             ->navigationGroups([
                 NavigationGroup::make('Inventory'),
-                NavigationGroup::make('Customer & Supplier'),
-                NavigationGroup::make('User Management')
+                NavigationGroup::make('People')
 
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+
+                //Pages\Dashboard::class,
+                \App\Filament\Pages\Dashboard::class,
                 \App\Filament\Pages\SaleReport::class,
                 //\App\Filament\Pages\ImportReport::class,
                 \App\Filament\Pages\ProductReport::class,
@@ -61,6 +65,7 @@ class AdminPanelProvider extends PanelProvider
             ])
 
             ->widgets([
+
                 //  Widgets\AccountWidget::class,
                 //  Widgets\FilamentInfoWidget::class,
                 \App\Filament\Widgets\SaleStats::class,

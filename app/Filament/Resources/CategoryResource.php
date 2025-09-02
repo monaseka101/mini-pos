@@ -56,6 +56,10 @@ class CategoryResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),

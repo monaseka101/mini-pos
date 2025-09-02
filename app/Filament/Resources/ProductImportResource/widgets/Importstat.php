@@ -21,29 +21,30 @@ class Importstats extends BaseWidget
 
     protected function getStats(): array
     {
-        // Calculate total import cost 
-        $importcost = DB::table('product_import_items')
-            ->join('product_imports', 'product_import_items.product_import_id', '=', 'product_imports.id')
-            ->selectRaw('SUM(product_import_items.qty * product_import_items.unit_price) as total')
-            ->value('total') ?? 0;
+        // Base filtered query from table page
+        $baseQuery = $this->getPageTableQuery()->getQuery();
 
-        // Calculate total number of items imported
-        $importitem = DB::table('product_import_items')
-            ->join('product_imports', 'product_import_items.product_import_id', '=', 'product_imports.id')
-            ->selectRaw('SUM(product_import_items.qty ) as total')
-            ->value('total') ?? 0;
+        // Clone query for aggregations to avoid messing up table query
+        $costQuery = clone $baseQuery;
+        $itemQuery = clone $baseQuery;
+
+        // Total import cost
+        $importcost = $costQuery
+            ->join('product_import_items', 'product_import_items.product_import_id', '=', 'product_imports.id')
+            ->sum(DB::raw('product_import_items.qty * product_import_items.unit_price'));
+
+        // Total items imported
+        $importitem = $itemQuery
+            ->join('product_import_items', 'product_import_items.product_import_id', '=', 'product_imports.id')
+            ->sum('product_import_items.qty');
+
+        // Import record count
+        $importCount = $baseQuery->count();
 
         return [
-            Stat::make('Total Imports', $this->getPageTableQuery()->count())->chart([27, 27])
-                ->color('info'),
-
-            Stat::make('Total Import Cost', '$' . number_format($importcost, 2))
-                ->chart([27, 27])
-                ->color('info'),
-
-            Stat::make('Total import items', $importitem)
-                ->chart([27, 27])
-                ->color('info'),
+            Stat::make('Import record', $importCount)->chart([27, 27])->color('info'),
+            Stat::make('Total Import Cost', '$' . number_format($importcost, 2))->chart([27, 27])->color('info'),
+            Stat::make('Total items imported', $importitem)->chart([27, 27])->color('info'),
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Enums\Role;
 use App\Filament\Resources\UserResource;
+use Filament\Facades\Filament;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -20,7 +21,9 @@ class EditUser extends EditRecord
             ->schema([
                 Forms\Components\Select::make('role')
                     ->options(Role::class)
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->hidden(fn() => Filament::auth()->user()?->role === Role::Admin),
+
 
                 Forms\Components\TextInput::make('password')
                     ->label('New Password')
@@ -38,7 +41,21 @@ class EditUser extends EditRecord
                     ->same('password')
                     ->label('Confirm New Password')
                     ->placeholder('Re-enter new password if changing'),
-                Forms\Components\Toggle::make('active'),
+
+                Forms\Components\TextInput::make('user_id')
+                    ->label('User ID')
+                    ->placeholder('Enter unique identifier')
+                    ->maxLength(255)
+                    ->unique(ignorable: fn($record) => $record), // enforce uniqueness in DB, but ignore when updating the same record
+                Forms\Components\TextInput::make('phone_number')
+                    ->label('Phone Number')
+                    ->placeholder('Enter phone number')
+                    ->tel() // adds input type="tel"
+                    ->maxLength(20)
+                    ->unique(ignorable: fn($record) => $record) // no duplicates
+
+                /* Forms\Components\Toggle::make('active'), */
+
             ]);
     }
 

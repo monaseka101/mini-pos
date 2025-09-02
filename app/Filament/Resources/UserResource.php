@@ -32,7 +32,7 @@ class UserResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-m-users';
 
-    protected static ?string $navigationGroup = 'User Management';
+    protected static ?string $navigationGroup = 'People';
 
     public static function form(Form $form): Form
     {
@@ -72,17 +72,20 @@ class UserResource extends Resource
                         ->defaultImageUrl(fn(User $record) => User::getDefaultAvatar($record->name))
                         ->circular(),
                     Tables\Columns\TextColumn::make('name')
-                        ->searchable()
+                        ->searchable(['phone_number', 'user_id'])
                         ->weight(EnumsFontWeight::Bold)
                     /* ->formatStateUsing(fn($record) => $record->name . ' (' . $record->role->name . ')') */,
-                    Tables\Columns\TextColumn::make('email'),
+                    Tables\Columns\TextColumn::make('email')
+                        ->searchable(),
                     Tables\Columns\IconColumn::make('active')
                         ->boolean(),
                 ])
                     ->alignCenter()
                     ->space(2)
 
+
             ])
+            ->defaultSort('role', 'asc')
             ->actions([
                 Tables\Actions\Action::make('activate')
                     ->button()
@@ -107,9 +110,6 @@ class UserResource extends Resource
                     ? Pages\EditUser::getUrl(['record' => $record])
                     : null;
             })
-
-
-
             /* ->bulkActions([
                 Tables\Actions\BulkAction::make('activate')
                     ->button()

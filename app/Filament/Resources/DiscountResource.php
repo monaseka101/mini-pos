@@ -26,6 +26,7 @@ class DiscountResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
+
             Forms\Components\TextInput::make('name')
                 ->required()
                 ->maxLength(255),
@@ -46,6 +47,10 @@ class DiscountResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
+            Tables\Columns\TextColumn::make('id')
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->label("Id")
+                ->sortable(),
             Tables\Columns\TextColumn::make('name')->sortable()->searchable(),
 
             Tables\Columns\TextColumn::make('value')

@@ -32,12 +32,12 @@ class ProductStats extends BaseWidget
 
         return [
             // Total number of unique products
-            Stat::make('Total Unique Products', $query->count())
+            Stat::make('Product Catalog Size', $query->count())
                 ->chart([27, 27])
                 ->color('info'),
 
             // Total inventory stock (sum of all product stock values)
-            Stat::make('Product Inventory', $query->sum('stock'))
+            Stat::make('Product Stocks', $query->sum('stock'))
                 ->chart([27, 27])
                 ->color('info'),
 
@@ -45,12 +45,12 @@ class ProductStats extends BaseWidget
             /* Stat::make('Average Price', '$ ' . number_format($query->avg('price'), 2))
                 ->chart([27, 27])
                 ->color('info'), */
-            Stat::make('Total Inventory Value', function (): string {
-                $value = Product::select(FacadesDB::raw('SUM(stock * price) as total_value'))
-                    ->value('total_value');
-
-                return '~ $' . number_format($value ?? 0, 2); // format to 2 decimal places
-            })->chart([27, 27])
+            Stat::make('Stock Value', function () use ($query) {
+                // Eloquent sum using a callback, avoids GROUP BY issues
+                $value = $query->get()->sum(fn($product) => $product->stock * $product->price);
+                return '$' . number_format($value, 2);
+            })
+                ->chart([27, 27])
                 ->color('info'),
         ];
     }

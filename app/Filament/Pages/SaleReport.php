@@ -10,7 +10,7 @@ use Filament\Pages\Page;
 use App\Filament\Resources\SaleResource\Widgets\SaleWidget;
 use App\Filament\Resources\SaleResource\Widgets\Categorypie;
 use App\Filament\Resources\SaleResource\Widgets\CustomerTable;
-use App\Filament\Widgets\SalesChart;
+use App\Filament\Resources\SaleResource\Widgets\SalesChart;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class SaleReport extends Page

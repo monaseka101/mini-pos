@@ -27,7 +27,11 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Infolist;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SalesItemExport;
+use App\Filament\Exports\SaleItemExporter;
 use App\Filament\Resources\SaleResource\Widgets\Salestats;
+use Filament\Forms\Components\Slider;
+use Filament\Tables\Filters\Filter;
+
 
 class SaleResource extends Resource
 {
@@ -204,14 +208,15 @@ class SaleResource extends Resource
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')
                     ->getStateUsing(fn(Sale $record) => $record->totalPrice()) // Sum price before discount
-                    ->sortable()
+                    ->sortable(false) // disable SQL sorting
                     ->badge()
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('has_discount')
                     ->label('Discount?')
-                    ->getStateUsing(fn(Sale $record) => $record->getHasDiscountAttribute())
-                    ->sortable(),
+                    ->searchable()
+                    ->getStateUsing(fn(Sale $record) => $record->getHasDiscountAttribute()),
+
 
                 Tables\Columns\TextColumn::make('total_pay')
                     ->money(currency: 'usd')
@@ -219,6 +224,10 @@ class SaleResource extends Resource
                     ->sortable()
                     ->badge()
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Seller')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('sale_date')
                     ->label('Sale Date')
@@ -233,6 +242,38 @@ class SaleResource extends Resource
                     ->searchable()
                     ->multiple()
                     ->relationship('customer', 'name'),
+                Tables\Filters\SelectFilter::make('has_discount')
+                    ->label('Discount?')
+                    ->options([
+                        'yes' => 'Yes',
+                        'no'  => 'No',
+                    ])
+                    ->query(function ($query, $data) {
+                        if (!isset($data['value'])) return;
+
+                        if ($data['value'] === 'yes') {
+                            // Only include sales with discount (discount_id > 1)
+                            $query->whereHas('saleItems', fn($q) => $q->where('discount_id', '>', 1));
+                        } else {
+                            // Only include sales without discount (discount_id = 1)
+                            $query->whereHas('saleItems', fn($q) => $q->where('discount_id', '=', 1));
+                        }
+                    }),
+                Filter::make('sale_date')
+                    ->form([
+                        DatePicker::make('start')->label('Start Date'),
+                        DatePicker::make('end')->label('End Date'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['start']) && !empty($data['end'])) {
+                            $query->whereBetween('sale_date', [$data['start'], $data['end']]);
+                        } elseif (!empty($data['start'])) {
+                            $query->where('sale_date', '>=', $data['start']);
+                        } elseif (!empty($data['end'])) {
+                            $query->where('sale_date', '<=', $data['end']);
+                        }
+                    }),
+
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -243,6 +284,7 @@ class SaleResource extends Resource
                 Tables\Actions\DeleteBulkAction::make()
             ])
             ->headerActions([
+                Tables\Actions\ExportAction::make()->exporter(SaleItemExporter::class),
                 // Export CSV action, triggers Excel export
                 Tables\Actions\Action::make('Export CSV')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -259,6 +301,7 @@ class SaleResource extends Resource
                         Excel::download(new SalesItemExport, 'Sale.xlsx')
                     ),
             ])
+
             ->defaultSort('sale_date', 'desc'); // Default newest sales first
     }
 

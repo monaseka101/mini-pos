@@ -35,7 +35,7 @@ class SupplierResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-m-arrow-path';
 
-    protected static ?string $navigationGroup = 'Customer & Supplier';
+    protected static ?string $navigationGroup = 'People';
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -62,6 +62,10 @@ class SupplierResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
