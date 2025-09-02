@@ -31,6 +31,17 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
         'password',
     ];
 
+    /***
+     * Boot function
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            $user->role = Role::Cashier;
+        });
+    }
+
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -75,5 +86,11 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+    // Auth
+    public function isAdmin()
+    {
+        return $this->role === Role::Admin;
     }
 }

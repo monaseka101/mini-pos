@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class SaleBrandChart extends ChartWidget
 {
-    protected static ?string $heading = 'Total brand number sold per year';
+    protected static ?string $heading = 'Most Selling Brands';
 
     protected function getData(): array
     {
@@ -56,13 +56,13 @@ class SaleBrandChart extends ChartWidget
         ];
     }
 
-    protected function getFilters(): ?array
-    {
-        return [
-            'brand' => 'Brand',
-            'Category' => 'Category',
-        ];
-    }
+    // protected function getFilters(): ?array
+    // {
+    //     return [
+    //         'brand' => 'Brand',
+    //         'Category' => 'Category',
+    //     ];
+    // }
 
     protected function getType(): string
     {

@@ -2,9 +2,13 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Exports\DetailedSaleExporter;
+use App\Filament\Exports\SaleExporter;
+use App\Filament\Exports\SaleItemExporter;
 use App\Filament\Resources\SaleResource\Widgets\SaleStats;
 use App\Models\Sale;
 use App\Models\Customer;
+use Filament\Actions\ExportAction;
 use App\Models\Product;
 use App\Models\SaleItem;
 use Filament\Forms;
@@ -13,6 +17,7 @@ use Filament\Resources\Resource;
 use App\Filament\Resources\SaleResource\Pages;
 use App\Helpers\Util;
 use Filament\Actions\Action;
+use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -29,7 +34,10 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Infolist;
+use Filament\Tables\Actions\ExportAction as ActionsExportAction;
+use Filament\Tables\Actions\ExportBulkAction;
 use Illuminate\Support\Facades\Log;
+use OpenSpout\Common\Entity\Style\CellAlignment;
 
 class SaleResource extends Resource
 {
@@ -123,7 +131,7 @@ class SaleResource extends Resource
             ->schema([
                 Forms\Components\Select::make('product_id')
                     ->label('Product')
-                    ->relationship('product', 'name', fn($query) => $query->where('active', true))
+                    ->relationship('product', 'name', fn(Builder $query) => $query->where('active', true)->where('stock', '>', 0))
                     ->preload()
                     ->required()
                     // ->reactive()
@@ -277,36 +285,47 @@ class SaleResource extends Resource
     //         ->defaultSort('created_at', 'desc');
     // }
 
-
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->label("Id")
+                    ->label('Sale #')
+                    ->formatStateUsing(fn($state) => Util::formatSaleId($state))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customer.name')
+                    ->tooltip('View customer information')
                     ->searchable()
                     ->sortable()
                     ->url(
                         fn($record) => CustomerResource::getUrl('customer.view', ['record' => $record->customer_id]),
                         shouldOpenInNewTab: true
                     ),
-                Tables\Columns\TextColumn::make('note')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->html(),
+
+                Tables\Columns\TextColumn::make('products')
+                    ->label('Products')
+                    ->getStateUsing(fn(Sale $record) => $record->listProducts()),
+
+                Tables\Columns\TextColumn::make('total_qty')
+                    ->label('Total Qty')
+                    ->weight(FontWeight::Bold)
+                    ->getStateUsing(fn(Sale $record) => $record->total_qty),
 
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')
-                    ->getStateUsing(fn(Sale $record) => $record->totalPrice())
-                    ->sortable()
-                    ->badge()
-                    ->color('success')
-                    ->toggleable(),
+                    ->getStateUsing(fn(Sale $record) => $record->total_price)
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query
+                            ->join('sale_items', 'sales.id', '=', 'sale_items.sale_id')
+                            ->groupBy('sales.id')
+                            ->selectRaw('sales.*, SUM((sale_items.unit_price * sale_items.qty) * (1 - COALESCE(sale_items.discount, 0)/100)) as total_price')
+                            ->orderBy('total_price', $direction);
+                    })
 
-                // Tables\Columns\IconColumn::make('active')
-                //     ->boolean(),
+                    ->badge()
+                    ->color('success'),
+                // ->toggleable(),
+
 
                 Tables\Columns\TextColumn::make('sale_date')
                     ->label('Sale Date')
@@ -317,51 +336,112 @@ class SaleResource extends Resource
                 Tables\Columns\TextColumn::make('user.name')
                     ->searchable()
                     ->label('Sold By'),
+                Tables\Columns\TextColumn::make('note')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->html(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created At')
                     ->sortable()
                     ->dateTime('d/m/Y')
                     ->dateTooltip('d/M/Y')
-                    ->toggleable(),
+                    ->toggleable(true),
             ])
             ->filters([
+                Tables\Filters\Filter::make('date_range')
+                    ->form([
+                        Forms\Components\DatePicker::make('from_date'),
+                        Forms\Components\DatePicker::make('to_date'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['from_date'], fn($q) => $q->whereDate('sale_date', '>=', $data['from_date']))
+                            ->when($data['to_date'], fn($q) => $q->whereDate('sale_date', '<=', $data['to_date']));
+                    }),
                 Tables\Filters\SelectFilter::make('customer')
                     ->preload()
                     ->searchable()
-                    ->multiple()
                     ->relationship('customer', titleAttribute: 'name'),
                 Tables\Filters\SelectFilter::make('Seller')
                     ->preload()
                     ->searchable()
                     ->multiple()
                     ->relationship('user', 'name'),
-                // Tables\Filters\Filter::make('sale_date')
-                //     ->form([
-                //         DatePicker::make('from')
-                //             ->label('From Date'),
-                //         DatePicker::make('until')
-                //             ->label('Until Date'),
-                //     ])
-                //     ->query(function (Builder $query, array $data): Builder {
-                //         return $query
-                //             ->when(
-                //                 $data['from'],
-                //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
-                //             )
-                //             ->when(
-                //                 $data['until'],
-                //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
-                //             );
-                //     }),
+                Tables\Filters\SelectFilter::make('product')
+                    ->label('Product')
+                    ->options(function () {
+                        return Product::query()
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when(
+                            filled($data['values']),
+                            fn(Builder $query): Builder => $query->whereHas(
+                                'items.product',
+                                fn(Builder $query): Builder => $query->whereIn('id', $data['values'])
+                            )
+                        );
+                    })
+                    // ->searchable()
+                    ->multiple()
+                    ->preload(),
             ])
+            // ->filters([
+            //     Tables\Filters\SelectFilter::make('customer')
+            //         ->preload()
+            //         ->searchable()
+            //         ->multiple()
+            //         ->relationship('customer', titleAttribute: 'name'),
+            //     Tables\Filters\SelectFilter::make('Seller')
+            //         ->preload()
+            //         ->searchable()
+            //         ->multiple()
+            //         ->relationship('user', 'name'),
+            //     // Tables\Filters\Filter::make('sale_date')
+            //     //     ->form([
+            //     //         DatePicker::make('from')
+            //     //             ->label('From Date'),
+            //     //         DatePicker::make('until')
+            //     //             ->label('Until Date'),
+            //     //     ])
+            //     //     ->query(function (Builder $query, array $data): Builder {
+            //     //         return $query
+            //     //             ->when(
+            //     //                 $data['from'],
+            //     //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
+            //     //             )
+            //     //             ->when(
+            //     //                 $data['until'],
+            //     //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
+            //     //             );
+            //     //     }),
+            // ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+
             ])
-            ->groupedBulkActions([
-                Tables\Actions\DeleteBulkAction::make()
+            ->bulkActions([
+
+                ExportBulkAction::make()
+                    ->color('primary')
+                    ->exporter(SaleExporter::class)
+                    ->formats([
+                        ExportFormat::Xlsx,
+                    ]),
             ])
+            // ->headerActions([
+            //     ActionsExportAction::make()
+            //         ->exporter(SaleExporter::class)
+            //         ->formats([
+            //             EnumsExportFormat::Xlsx
+            //         ]),
+            // ])
+            // ->groupedBulkActions([
+            //     Tables\Actions\DeleteBulkAction::make()
+            // ])
             // ->groups([
             //     Tables\Grouping\Group::make('sale_date')
             //         ->label('Order Date')
@@ -382,6 +462,7 @@ class SaleResource extends Resource
                                 TextEntry::make('id')
                                     ->label('Sale ID')
                                     ->badge()
+                                    ->formatStateUsing(fn($state) => Util::formatSaleId($state))
                                     ->color('primary'),
 
                                 TextEntry::make('sale_date')
@@ -399,6 +480,12 @@ class SaleResource extends Resource
                             ->schema([
                                 TextEntry::make('customer.name')
                                     ->label('Customer')
+                                    ->icon('heroicon-o-user')
+                                    ->badge()
+                                    ->color('success')
+                                    ->weight(FontWeight::SemiBold),
+                                TextEntry::make('customer.phone')
+                                    ->label('Phone Number')
                                     ->icon('heroicon-o-user')
                                     ->badge()
                                     ->color('success')
@@ -440,7 +527,7 @@ class SaleResource extends Resource
                                                 ->color('primary'),
                                             TextEntry::make('discount')
                                                 ->getStateUsing(fn($record) => $record->discount ?? 0)
-                                                ->prefix('%')
+                                                ->suffix('%')
                                                 ->badge()
                                                 ->color('primary'),
                                             TextEntry::make('unit_price')
@@ -454,7 +541,7 @@ class SaleResource extends Resource
                                                 ->weight(FontWeight::Bold)
                                                 // ->color('success')
                                                 ->state(function ($record) {
-                                                    return $record->qty * $record->unit_price;
+                                                    return $record->subTotal();
                                                 }),
                                         ]),
                                 ])
@@ -476,9 +563,7 @@ class SaleResource extends Resource
                                 TextEntry::make('total_amount')
                                     ->label('Total Amount')
                                     ->state(function ($record) {
-                                        return $record->items->sum(function ($item) {
-                                            return $item->qty * $item->unit_price;
-                                        });
+                                        return $record->total_price;
                                     })
                                     ->money('USD')
                                     ->size('lg')

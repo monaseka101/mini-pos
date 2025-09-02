@@ -68,6 +68,11 @@ class CustomerResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
@@ -75,7 +80,12 @@ class CustomerResource extends Resource
                     ->badge(),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
-
+                Tables\Columns\TextColumn::make('date_of_birth')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->label('Date of Birth')
+                    ->date('d/m/Y')
+                    ->dateTooltip('d/M/Y')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('address')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -83,12 +93,7 @@ class CustomerResource extends Resource
                     ->dateTooltip('d/M/Y h:m:s')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('date_of_birth')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->label('Date of Birth')
-                    ->date('d/m/Y')
-                    ->dateTooltip('d/M/Y')
-                    ->sortable(),
+
                 Tables\Columns\IconColumn::make('active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('updated_at')
@@ -100,6 +105,11 @@ class CustomerResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('gender')
                     ->options(Gender::class),
+                Tables\Filters\TernaryFilter::make('active')
+                    ->label('Status')
+                    ->placeholder('All Customers')
+                    ->trueLabel('Active')
+                    ->falseLabel('Inactive')
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -148,22 +158,22 @@ class CustomerResource extends Resource
                                 ->color('gray'),
                         ]),
                         Grid::make(4)
-                        ->schema([
-                            // TextEntry::make('total_items')
-                            //     ->label('Total Items')
-                            //     ->state(function ($record) {
-                            //         return $record->items->sum('qty');
-                            //     })
-                            //     ->badge()
-                            //     ->color('info')
-                            //     ->icon('heroicon-o-list-bullet'),
-                            TextEntry::make('d')
-                                ->label(''),
-                            TextEntry::make('s')
-                                ->label(''),
-                            TextEntry::make('x')
-                                ->label(''),
-                        ])
+                            ->schema([
+                                // TextEntry::make('total_items')
+                                //     ->label('Total Items')
+                                //     ->state(function ($record) {
+                                //         return $record->items->sum('qty');
+                                //     })
+                                //     ->badge()
+                                //     ->color('info')
+                                //     ->icon('heroicon-o-list-bullet'),
+                                TextEntry::make('d')
+                                    ->label(''),
+                                TextEntry::make('s')
+                                    ->label(''),
+                                TextEntry::make('x')
+                                    ->label(''),
+                            ])
                     ]),
 
                 Section::make('Contact Details')

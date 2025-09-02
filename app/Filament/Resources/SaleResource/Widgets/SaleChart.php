@@ -11,27 +11,28 @@ use Flowframe\Trend\TrendValue;
 
 class SaleChart extends ChartWidget
 {
-    protected static ?string $heading = 'Sales per month in a year.';
-
+    protected static ?string $heading = 'Sales Per Month Within a year.';
     // protected static ?string $pollingInterval = '2s';
-
     protected static ?int $sort = 1;
 
-    public ?string $filter = 'today';
+    public ?string $filter = '2025'; // Changed default to current year
 
     protected function getData(): array
     {
+        // Get the selected year from filter, default to current year
+        $selectedYear = $this->filter ?? now()->year;
+
         $data = Trend::query(
             Sale::query()
                 ->join('sale_items as SI', 'sales.id', '=', 'SI.sale_id')
-            )
+        )
             ->dateColumn('sale_date')
             ->between(
-                start: now()->startOfYear(),
-                end: now()->endOfYear(),
+                start: Carbon::createFromDate($selectedYear, 1, 1)->startOfYear(),
+                end: Carbon::createFromDate($selectedYear, 12, 31)->endOfYear(),
             )
             ->perMonth()
-            ->sum('SI.qty * SI.unit_price');
+            ->sum('SI.unit_price * SI.qty * (1 - COALESCE(SI.discount, 0)/100)');
 
         return [
             'datasets' => [
@@ -56,10 +57,17 @@ class SaleChart extends ChartWidget
 
     protected function getFilters(): ?array
     {
-        return [
-            '2025' => '2025',
-            '2024' => '2024',
-        ];
+        // Generate a dynamic list of years (current year and previous years)
+        $currentYear = now()->year;
+        $years = [];
+
+        // Add current year and previous 4 years
+        for ($i = 0; $i < 5; $i++) {
+            $year = $currentYear - $i;
+            $years[(string) $year] = (string) $year;
+        }
+
+        return $years;
     }
 
     protected function getType(): string

@@ -12,17 +12,20 @@ use Flowframe\Trend\TrendValue;
 class ProductImportChart extends ChartWidget
 {
     protected static ?string $heading = 'Product imports per month in a year';
+    public ?string $filter = '2025'; // Changed default to current year
 
     protected function getData(): array
     {
+        // Get the selected year from filter, default to current year
+        $selectedYear = $this->filter ?? now()->year;
         $data = Trend::query(
             ProductImport::query()
                 ->join('product_import_items as PIT', 'product_imports.id', '=', 'PIT.product_import_id')
         )
             ->dateColumn('import_date')
             ->between(
-                start: now()->startOfYear(),
-                end: now()->endOfYear(),
+                start: Carbon::createFromDate($selectedYear, 1, 1)->startOfYear(),
+                end: Carbon::createFromDate($selectedYear, 12, 31)->endOfYear(),
             )
             ->perMonth()
             ->sum('PIT.qty * PIT.unit_price');
@@ -46,6 +49,21 @@ class ProductImportChart extends ChartWidget
                 fn(TrendValue $value) => Carbon::parse($value->date)->format('M Y')
             ),
         ];
+    }
+
+    protected function getFilters(): ?array
+    {
+        // Generate a dynamic list of years (current year and previous years)
+        $currentYear = now()->year;
+        $years = [];
+
+        // Add current year and previous 4 years
+        for ($i = 0; $i < 5; $i++) {
+            $year = $currentYear - $i;
+            $years[(string) $year] = (string) $year;
+        }
+
+        return $years;
     }
 
     protected function getType(): string

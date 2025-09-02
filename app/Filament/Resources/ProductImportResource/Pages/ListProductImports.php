@@ -9,6 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 class ListProductImports extends ListRecords
 {
     protected static string $resource = ProductImportResource::class;
+    protected static ?string $title = 'Product Import History';
 
     protected function getHeaderActions(): array
     {

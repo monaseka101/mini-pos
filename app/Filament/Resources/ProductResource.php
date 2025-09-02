@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Exports\ProductExporter;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Filament\Resources\ProductResource\Widgets\ProductStats;
@@ -9,6 +10,10 @@ use App\Helpers\Util;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use Faker\Core\Color;
+use Filament\Actions\ExportAction;
+use Filament\Actions\Exports\Enums\Contracts\ExportFormat;
+use Filament\Actions\Exports\Enums\ExportFormat as EnumsExportFormat;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -27,7 +32,10 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\Split;
 use Filament\Support\Enums\FontWeight;
+use Filament\Tables\Actions\ExportAction as ActionsExportAction;
+use Filament\Tables\Actions\ExportBulkAction;
 use Filament\Tables\Columns\Layout\Split as LayoutSplit;
+use SebastianBergmann\CodeCoverage\Report\Html\Colors;
 
 use function Laravel\Prompts\table;
 
@@ -141,6 +149,9 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\ImageColumn::make('image')
                     ->size(60)
                     ->defaultImageUrl(fn($record) => Util::getDefaultAvatar($record->name)),
@@ -148,6 +159,8 @@ class ProductResource extends Resource
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('price')
+                    ->label('Sale Price')
+                    ->weight(FontWeight::Bold)
                     ->money()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('stock')
@@ -161,6 +174,10 @@ class ProductResource extends Resource
                     ->icon(
                         fn($record) =>
                         $record->stock <= 0 ? 'heroicon-m-x-circle' : ($record->stock <= $record->stock_security ? 'heroicon-m-exclamation-triangle' : 'heroicon-m-check-circle')
+                    )
+                    ->tooltip(
+                        fn($record) =>
+                        $record->stock <= 0 ? 'Out of stock' : ($record->stock <= $record->stock_security ? 'Low stock - below security level' : 'Stock level is good')
                     ),
 
                 Tables\Columns\TextColumn::make('brand.name')
@@ -170,11 +187,14 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('category.name')
                     ->badge()
                     ->color('info'),
-                Tables\Columns\IconColumn::make('active')
-                    ->boolean(),
+                Tables\Columns\TextColumn::make('description')
+                    ->toggleable(true)
+                    ->html(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->label('Created By'),
+                Tables\Columns\IconColumn::make('active')
+                    ->boolean(),
                 // ->url(
                 //     fn ($record) => $record->user ? route('filament.admin.resources.users.view', ['record' => $record->user]) : null,
                 //     shouldOpenInNewTab: true
@@ -207,19 +227,33 @@ class ProductResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
+            // ->headerActions([
+            //     ActionsExportAction::make()
+            //         ->exporter(ProductExporter::class)
+            // ])
             ->bulkActions([
-                Tables\Actions\BulkAction::make('activate')
-                    ->label('Activate Selected')
-                    ->icon('heroicon-m-check-circle')
-                    ->color('success')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-                Tables\Actions\BulkAction::make('deactivate')
-                    ->label('Deactivate Selected')
-                    ->icon('heroicon-m-x-circle')
-                    ->color('danger')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+                ExportBulkAction::make()
+                    ->label('Export Selected Products')
+                    ->color('primary')
+                    ->exporter(ProductExporter::class)
             ])
-            ->defaultSort('active', 'desc');
+            // ->bulkActions([
+            //     Tables\Actions\BulkAction::make('activate')
+            //         ->label('Activate Selected')
+            //         ->icon('heroicon-m-check-circle')
+            //         ->color('success')
+            //         ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+            //     Tables\Actions\BulkAction::make('deactivate')
+            //         ->label('Deactivate Selected')
+            //         ->icon('heroicon-m-x-circle')
+            //         ->color('danger')
+            //         ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+            // ])
+            ->defaultSort(function (Builder $query) {
+                return $query
+
+                    ->orderByDesc('created_at');
+            });
     }
 
     public static function getWidgets(): array
@@ -261,6 +295,7 @@ class ProductResource extends Resource
                                         ->schema([
                                             TextEntry::make('price')
                                                 ->label('Price')
+
                                                 ->money('USD')
                                                 ->size(TextEntry\TextEntrySize::Large)
                                                 ->color('success'),

@@ -53,6 +53,10 @@ class SupplierResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),

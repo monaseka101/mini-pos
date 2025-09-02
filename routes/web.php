@@ -1,8 +1,13 @@
 <?php
 
+use App\Models\Product;
+use App\Models\ProductImport;
+use App\Models\ProductImportItem;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\User;
+use Carbon\Carbon;
+use Filament\Forms\Get;
 use Flowframe\Trend\Trend;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 
 use Flowframe\Trend\TrendValue;
+use Illuminate\Contracts\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
+use function Livewire\of;
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -80,5 +88,49 @@ Route::get('/data', function () {
         ->groupBy('sales.customer_id', 'customers.name')
         ->orderBy('total_purchases', 'desc')
         ->get();
+});
 
+
+
+Artisan::command('play', function () {
+    $sql =  SaleItem::query()
+        ->select(
+            'P.name',
+            \DB::raw('SUM(sale_items.qty) as total_qty'),
+            \DB::raw('SUM((sale_items.unit_price * sale_items.qty) * (1 - COALESCE(sale_items.discount, 0)/100)) as total_amount')
+        )
+        ->join('products as P', 'sale_items.product_id', '=', 'P.id')
+        ->groupBy('p.id');
+    foreach(collect($sql->get()) as $sale) {
+        dump($sale);
+    }
+
+});
+
+
+Route::get('/dumb', function () {
+    $result = Trend::query(
+        Sale::query()->join('sale_items', 'sale.id', '=', 'sale_items.sale_id')
+    );
+    $selectedYear = now()->year;
+    $data = Trend::query(
+        Sale::query()
+            ->join('sale_items as SI', 'sales.id', '=', 'SI.sale_id')
+    )
+        ->dateColumn('sales.sale_date')
+        ->between(
+            start: Carbon::createFromDate($selectedYear, 1, 1)->startOfYear(),
+            end: Carbon::createFromDate($selectedYear, 12, 31)->endOfYear(),
+        )
+        ->perMonth()
+        ->sum('SI.qty');
+    // dd($data);
+
+    $query =  Sale::query()->join(
+        'sale_items as SI',
+        'sales.id',
+        '=',
+        'SI.sale_id'
+    )->select('SI.qty', 'SI.unit_price');
+    dd($query->get());
 });

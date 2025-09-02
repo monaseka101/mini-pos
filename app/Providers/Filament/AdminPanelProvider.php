@@ -36,17 +36,19 @@ class AdminPanelProvider extends PanelProvider
             ->profile(EditProfile::class, isSimple: false)
             ->brandLogo(Storage::url(path: 'default/bg.png'))
             ->brandLogoHeight('60px')
+            ->databaseNotifications()
             // ->brandName('Computer Shop')
             ->id('admin')
             ->globalSearch(false)
             ->path('admin')
             ->login(Login::class)
             ->passwordReset()
-            ->registration()
+            ->registration(Register::class)
+            ->emailVerification()
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->sidebarFullyCollapsibleOnDesktop()
+            // ->sidebarFullyCollapsibleOnDesktop()
             ->sidebarWidth('16rem')
             ->navigationGroups([
                 NavigationGroup::make('Inventory'),

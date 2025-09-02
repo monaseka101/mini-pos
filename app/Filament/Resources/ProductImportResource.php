@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Exports\ProductImportExporter;
 use App\Filament\Resources\ProductImportResource\Pages;
 use App\Filament\Resources\ProductImportResource\RelationManagers;
 use App\Models\Product;
 use App\Models\ProductImport;
 use Filament\Actions\Action;
+use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
@@ -19,9 +21,11 @@ use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
+use Filament\Tables\Actions\ExportBulkAction;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Log;
 
 class ProductImportResource extends Resource
 {
@@ -98,7 +102,7 @@ class ProductImportResource extends Resource
                         Grid::make(3)
                             ->schema([
                                 TextEntry::make('id')
-                                    ->label('Sale ID')
+                                    ->label('Import ID')
                                     ->badge()
                                     ->color('primary'),
 
@@ -213,22 +217,54 @@ class ProductImportResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('products')
+                    ->label('Products')
+                    ->getStateUsing(function (ProductImport $record) {
+                        // Option 1: Simple approach (may cause N+1 queries)
+                        return $record->listProducts();
+                    }),
+
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->url(fn($record) => SupplierResource::getUrl('supplier.view', ['record' => $record->supplier_id]), true)
+                    ->tooltip("link to view supplier's information")
                     ->sortable(),
+                Tables\Columns\TextColumn::make('import_date')
+                    ->label('Import Date')
+                    ->date('d/m/Y')
+                    ->weight(FontWeight::Bold)
+                    ->dateTooltip('d/M/Y')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('total_qty')
+                    ->label('Total Qty')
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        $result =  $query
+                            ->join('product_import_items', 'product_imports.id', '=', 'product_import_items.product_import_id')
+                            ->groupBy('product_imports.id')
+                            ->selectRaw('product_imports.*, SUM(product_import_items.qty) as total_qty')
+                            ->orderBy('total_qty', $direction);
+                        Log::info($result->get());
+                        return $result;
+                    })
+                    ->weight(FontWeight::Bold)
+                    ->getStateUsing(function (ProductImport $record) {
+                        // Option 1: Simple approach (may cause N+1 queries)
+                        return $record->totalQty();
+                    }),
                 Tables\Columns\TextColumn::make('total_price')
+                    ->label('Total Price')
                     ->money(currency: 'usd')
                     ->getStateUsing(fn(ProductImport $record) => $record->totalPrice())
-                    ->sortable()
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return ProductImport::sortByTotalPrice($query, $direction);
+                    })
                     ->weight(FontWeight::Bold),
                 Tables\Columns\TextColumn::make('note')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->html(),
 
-                Tables\Columns\TextColumn::make('import_date')
-                    ->date('d/m/Y')
-                    ->dateTooltip('d/M/Y')
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->toggleable()
                     ->label('Imported By'),
@@ -242,6 +278,17 @@ class ProductImportResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\Filter::make('date_range')
+                    ->form([
+                        Forms\Components\DatePicker::make('from_date'),
+                        Forms\Components\DatePicker::make('to_date'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['from_date'], fn($q) => $q->whereDate('import_date', '>=', $data['from_date']))
+                            ->when($data['to_date'], fn($q) => $q->whereDate('import_date', '<=', $data['to_date']));
+                    }),
+
                 Tables\Filters\SelectFilter::make('supplier')
                     ->relationship('supplier', 'name')
                     ->preload()
@@ -251,13 +298,32 @@ class ProductImportResource extends Resource
                     ->relationship('user', 'name')
                     ->preload()
                     ->searchable()
+                    ->multiple(),
+                Tables\Filters\SelectFilter::make('product')
+                    ->label('Product')
+                    ->options(function () {
+                        return Product::query()
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when(
+                            filled($data['values']),
+                            fn(Builder $query): Builder => $query->whereHas(
+                                'items.product',
+                                fn(Builder $query): Builder => $query->whereIn('id', $data['values'])
+                            )
+                        );
+                    })
+                    // ->searchable()
                     ->multiple()
-
+                    ->preload(),
             ])
             ->searchable()
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
                     ->before(function (ProductImport $record) {
                         foreach ($record->items as $item) {
@@ -266,11 +332,16 @@ class ProductImportResource extends Resource
                         }
                     })
             ])
-            ->bulkActions(actions: [
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
+            ->bulkActions(
+                actions: [
+                    ExportBulkAction::make()
+                        ->color('primary')
+                        ->exporter(ProductImportExporter::class)
+                        ->formats([
+                            ExportFormat::Xlsx,
+                        ])
+                ]
+            )
             ->defaultSort('created_at', 'desc');
     }
 
@@ -286,7 +357,7 @@ class ProductImportResource extends Resource
         return [
             'index' => Pages\ListProductImports::route('/'),
             'create' => Pages\CreateProductImport::route('/create'),
-            'edit' => Pages\EditProductImport::route('/{record}/edit'),
+            // 'edit' => Pages\EditProductImport::route('/{record}/edit'),
         ];
     }
 }

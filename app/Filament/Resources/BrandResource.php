@@ -41,15 +41,8 @@ class BrandResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->maxLength(255)
                     ->required(),
-
-                Country::make('made_in')
-                    ->exclude(['USA'])
-                    ->searchable()
+                Forms\Components\TextInput::make('made_in')
                     ->label('Made In'),
-                // Forms\Components\TextInput::make('made_in')
-                //     ->label('Made In')
-                //     ->maxLength(255)
-                //     ->required(),
                 Forms\Components\TextInput::make('website')
                     ->label('Official website')
                     ->unique(ignoreRecord: true)
@@ -115,7 +108,8 @@ class BrandResource extends Resource
                     ->label('Status')
                     ->placeholder('All Brands')
                     ->trueLabel('Active Brand')
-                    ->falseLabel('Inactive Brand')
+                    ->falseLabel('Inactive Brand'),
+
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

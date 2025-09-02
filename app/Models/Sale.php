@@ -13,10 +13,17 @@ class Sale extends Model
     /** @use HasFactory<\Database\Factories\SaleFactory> */
     use HasFactory;
 
-    public function totalPrice()
+    // public function totalPrice()
+    // {
+    //     return collect($this->items)
+    //         ->reduce(fn($total, $item) => $total + $item->subTotal(), 0);
+    // }
+
+    protected function totalPrice(): Attribute
     {
-        return collect($this->items)
-            ->reduce(fn($total, $item) => $total + $item->subTotal(), 0);
+        return Attribute::make(
+            get: fn() => $this->items->sum(fn($item) => $item->subTotal())
+        );
     }
 
     protected function totalQty(): Attribute
@@ -26,6 +33,16 @@ class Sale extends Model
         );
     }
 
+    public function listProducts()
+    {
+        return $this->items()
+            ->with('product')
+            ->get()
+            ->pluck('product.name')
+            ->filter()
+            ->join(', ');
+    }
+
     public static function totalSaleForToday()
     {
         return static::query()
@@ -33,7 +50,7 @@ class Sale extends Model
             ->with('items')
             ->get()
             ->sum(function (Sale $sale) {
-                return $sale->totalPrice();
+                return $sale->totalPrice;
             });
     }
 
@@ -45,7 +62,7 @@ class Sale extends Model
             ->with('items')
             ->get()
             ->sum(function (Sale $sale) {
-                return $sale->totalPrice();
+                return $sale->total_price;
             });
     }
 
@@ -56,7 +73,7 @@ class Sale extends Model
             ->with('items')
             ->get()
             ->sum(function (Sale $sale) {
-                return $sale->totalPrice();
+                return $sale->totalPrice;
             });
     }
 

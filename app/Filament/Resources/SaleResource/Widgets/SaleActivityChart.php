@@ -25,7 +25,8 @@ class SaleActivityChart extends ChartWidget
                 end: now()
             )
             ->perDay()
-            ->sum('sale_items.qty * sale_items.unit_price');
+            ->sum('sale_items.unit_price * sale_items.qty * (1 - COALESCE(sale_items.discount, 0)/100)');
+            // ->sum('sale_items.qty * sale_items.unit_price');
 
         return [
             'datasets' => [

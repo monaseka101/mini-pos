@@ -12,11 +12,12 @@ class SaleStats extends BaseWidget
     protected function getStats(): array
     {
         $today = Carbon::now();
+        $currentYear = Carbon::now()->year;
         $currentMonth = Carbon::now()->format('F');
         return [
             Stat::make('Today Sale', '$ ' . number_format(Sale::totalSaleForToday(), 2)),
             Stat::make('Total Sale this month (' . $currentMonth . ')', '$ ' . number_format(Sale::totalSaleForThisMonth(), 2)),
-            Stat::make('Total Sale this year', '$ ' . number_format(Sale::totalSaleForThisYear(), 2)),
+            Stat::make("Total Sale this year ({$currentYear})", '$ ' . number_format(Sale::totalSaleForThisYear(), 2)),
         ];
     }
 }

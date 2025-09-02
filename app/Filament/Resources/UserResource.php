@@ -77,12 +77,20 @@ class UserResource extends Resource
                         ->searchable()
                         ->weight(FontWeight::Bold)
                         ->formatStateUsing(fn($record) => $record->name . ' (' . $record->role->name . ')'),
-                    Tables\Columns\TextColumn::make('email'),
+                    Tables\Columns\TextColumn::make('email')
+                        ->searchable(),
                     Tables\Columns\IconColumn::make('active')
                         ->boolean(),
                 ])
                     ->alignCenter()
                     ->space(2)
+            ])
+            ->filters([
+                Tables\Filters\TernaryFilter::make('active')
+                    ->label('Status')
+                    ->placeholder('All Users')
+                    ->trueLabel('Active ')
+                    ->falseLabel('Inactive ')
             ])
             ->actions([
                 Tables\Actions\Action::make('activate')
@@ -90,22 +98,24 @@ class UserResource extends Resource
                     ->label('Activate')
                     ->icon('heroicon-m-check-circle')
                     ->color('success')
+                    ->hidden(fn(User $record) => ! auth()->user()->isAdmin() || $record->isAdmin())
                     ->action(fn(User $record) => $record->update(['active' => true])),
                 Tables\Actions\Action::make('deactivate')
                     ->button()
                     ->label('Deactivate')
+                    ->hidden(fn(User $record) => ! auth()->user()->isAdmin() || $record->isAdmin())
                     ->icon('heroicon-m-x-circle')
                     ->color('danger')
                     ->action(fn(User $record) => $record->update(['active' => false])),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkAction::make('activate')
-                    ->button()
-                    ->label('Activate')
-                    ->icon('heroicon-m-check-circle')
-                    ->color('success')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-            ])
+            // ->bulkActions([
+            //     Tables\Actions\BulkAction::make('activate')
+            //         ->button()
+            //         ->label('Activate')
+            //         ->icon('heroicon-m-check-circle')
+            //         ->color('success')
+            //         ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+            // ])
             ->contentGrid(
                 [
                     'md' => 2,
@@ -196,7 +206,7 @@ class UserResource extends Resource
         return [
             'index' => Pages\ListUsers::route('/'),
             'create' => Pages\CreateUser::route('/create'),
-            'edit' => Pages\EditUser::route('/{record}/edit'),
+            // 'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
     }
 }

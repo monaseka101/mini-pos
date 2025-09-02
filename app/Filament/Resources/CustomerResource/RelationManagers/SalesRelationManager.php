@@ -163,21 +163,36 @@ class SalesRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->heading("Purchase History")
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('Sale #')
+                    ->weight(FontWeight::Bold)
+                    ->formatStateUsing(fn($state) => Util::formatSaleId($state)),
                 Tables\Columns\TextColumn::make('sale_date')
                     ->label('Sale Date')
                     ->sortable()
                     ->dateTime('d/m/Y')
                     ->dateTooltip('d/M/Y')
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('note')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->html(),
+                Tables\Columns\TextColumn::make('products')
+                    ->label('Products')
+                    ->state(fn(Sale $record) => $record->listProducts()),
+
                 Tables\Columns\TextColumn::make('total_price')
                     ->money(currency: 'usd')
-                    ->getStateUsing(fn(Sale $record) => $record->totalPrice())
-                    ->sortable()
-                    ->badge()
+                    ->getStateUsing(fn(Sale $record) => $record->total_price)
+                    ->weight(FontWeight::Bold)
+                    ->color('success')
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query
+                            ->join('sale_items', 'sales.id', '=', 'sale_items.sale_id')
+                            ->groupBy('sales.id')
+                            ->selectRaw('sales.*, SUM((sale_items.unit_price * sale_items.qty) * (1 - COALESCE(sale_items.discount, 0)/100)) as total_price')
+                            ->orderBy('total_price', $direction);
+                    })                    // ->badge()
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('note')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->html(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Created By')
             ])
