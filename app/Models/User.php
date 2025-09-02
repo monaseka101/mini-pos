@@ -12,11 +12,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use Illuminate\Auth\Passwords\CanResetPassword;
 
-class User extends Authenticatable implements HasAvatar, FilamentUser
+class User extends Authenticatable implements HasAvatar, FilamentUser, CanResetPasswordContract
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, CanResetPassword;
 
     /**
      * The attributes that are mass assignable.
@@ -29,6 +32,9 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
         'role',
         'avatar_url',
         'password',
+    ];
+    protected $casts = [
+        'role' => Role::class,
     ];
 
     /***
@@ -78,9 +84,12 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
         return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
     }
 
+    // php artisan vendor:publish --tag=filament-config
+
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        // Only allow active users to access the admin panel
+        return $this->active == true;
     }
 
     public function sales(): HasMany
@@ -88,9 +97,26 @@ class User extends Authenticatable implements HasAvatar, FilamentUser
         return $this->hasMany(Sale::class);
     }
 
+<<<<<<< HEAD
     // Auth
     public function isAdmin()
     {
         return $this->role === Role::Admin;
+=======
+
+    public function getRoleEnum(): ?Role
+    {
+        if (!isset($this->role)) {
+            return null;
+        }
+
+        // If it's already a Role enum, return it directly
+        if ($this->role instanceof Role) {
+            return $this->role;
+        }
+
+        // Otherwise, convert string to enum
+        return Role::from($this->role);
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
     }
 }

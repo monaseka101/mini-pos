@@ -13,6 +13,7 @@ use Filament\Forms;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
+use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\Split;
@@ -25,7 +26,20 @@ use Filament\Tables\Actions\ExportBulkAction;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+<<<<<<< HEAD
 use Illuminate\Support\Facades\Log;
+=======
+use Illuminate\Support\Facades\Auth;
+use App\Enums\Role;
+use Filament\Facades\Filament;
+
+
+use App\Exports\ProductImportItemsExport;
+use App\Filament\Resources\ProductImportResource\Pages\EditProductImport;
+use Filament\Forms\Components\DatePicker;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Forms\Components\Select;
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
 
 class ProductImportResource extends Resource
 {
@@ -63,31 +77,45 @@ class ProductImportResource extends Resource
                         Repeater::make('items')
                             ->relationship()
                             ->schema([
-                                Forms\Components\Select::make('product_id')
+                                Select::make('product_id')
                                     ->label('Product')
                                     ->relationship('product', 'name', fn($query) => $query->where('active', true))
                                     ->preload()
                                     ->required()
                                     ->distinct()
                                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+<<<<<<< HEAD
                                     ->searchable(),
 
                                 Forms\Components\TextInput::make('qty')
+=======
+                                    ->searchable()
+                                    ->reactive()
+                                    ->afterStateUpdated(function (callable $set, $state) {
+                                        $price = \App\Models\Product::find($state)?->price ?? 0;
+                                        $set('product_price', $price);
+                                    }),
+
+                                TextInput::make('qty')
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                                     ->label('Quantity')
                                     ->numeric()
                                     ->default(1)
                                     ->minValue(1)
                                     ->required(),
 
-                                Forms\Components\TextInput::make('unit_price')
+                                TextInput::make('unit_price')
                                     ->label('Unit Price')
                                     ->prefix('$')
                                     ->required(),
+
+                                TextInput::make('product_price')
+                                    ->label('Current Price')
+                                    ->disabled()
+                                    ->dehydrated(false) // prevents it from being saved to DB
+                                    ->prefix('$')
                             ])
-                            ->orderColumn('')
-                            ->defaultItems(1)
-                            ->hiddenLabel()
-                            ->columns(3)
+                            ->columns(4)
                             ->required()
                     ])
             ]);
@@ -181,14 +209,6 @@ class ProductImportResource extends Resource
 
                         Grid::make(4)
                             ->schema([
-                                // TextEntry::make('total_items')
-                                //     ->label('Total Items')
-                                //     ->state(function ($record) {
-                                //         return $record->items->sum('qty');
-                                //     })
-                                //     ->badge()
-                                //     ->color('info')
-                                //     ->icon('heroicon-o-list-bullet'),
                                 TextEntry::make('d')
                                     ->label(''),
                                 TextEntry::make('s')
@@ -218,6 +238,7 @@ class ProductImportResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
+<<<<<<< HEAD
                     ->label('ID')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('products')
@@ -227,6 +248,11 @@ class ProductImportResource extends Resource
                         return $record->listProducts();
                     }),
 
+=======
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->url(fn($record) => SupplierResource::getUrl('supplier.view', ['record' => $record->supplier_id]), true)
                     ->tooltip("link to view supplier's information")
@@ -257,9 +283,12 @@ class ProductImportResource extends Resource
                     ->label('Total Price')
                     ->money(currency: 'usd')
                     ->getStateUsing(fn(ProductImport $record) => $record->totalPrice())
+<<<<<<< HEAD
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return ProductImport::sortByTotalPrice($query, $direction);
                     })
+=======
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                     ->weight(FontWeight::Bold),
                 Tables\Columns\TextColumn::make('note')
                     ->toggleable(isToggledHiddenByDefault: true)
@@ -278,6 +307,7 @@ class ProductImportResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+<<<<<<< HEAD
                 Tables\Filters\Filter::make('date_range')
                     ->form([
                         Forms\Components\DatePicker::make('from_date'),
@@ -289,11 +319,32 @@ class ProductImportResource extends Resource
                             ->when($data['to_date'], fn($q) => $q->whereDate('import_date', '<=', $data['to_date']));
                     }),
 
+=======
+                Tables\Filters\SelectFilter::make('import_date')
+                    ->form([
+                        DatePicker::make('start')->label('Start Date'),
+                        DatePicker::make('end')->label('End Date'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['start']) && !empty($data['end'])) {
+                            $query->whereBetween('import_date', [$data['start'], $data['end']]);
+                        } elseif (!empty($data['start'])) {
+                            $query->where('import_date', '>=', $data['start']);
+                        } elseif (!empty($data['end'])) {
+                            $query->where('import_date', '<=', $data['end']);
+                        }
+                    })
+                    ->default(fn() => [
+                        'start' => request()->get('startDate'),
+                        'end'   => request()->get('endDate'),
+                    ]),
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                 Tables\Filters\SelectFilter::make('supplier')
                     ->relationship('supplier', 'name')
                     ->preload()
                     ->searchable()
                     ->multiple(),
+<<<<<<< HEAD
                 Tables\Filters\SelectFilter::make('importer')
                     ->relationship('user', 'name')
                     ->preload()
@@ -317,12 +368,19 @@ class ProductImportResource extends Resource
                         );
                     })
                     // ->searchable()
+=======
+                Tables\Filters\SelectFilter::make('user')
+                    ->relationship('user', 'name')
+                    ->preload()
+                    ->searchable()
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                     ->multiple()
                     ->preload(),
             ])
             ->searchable()
             ->actions([
                 Tables\Actions\ViewAction::make(),
+<<<<<<< HEAD
                 // Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
                     ->before(function (ProductImport $record) {
@@ -343,6 +401,36 @@ class ProductImportResource extends Resource
                 ]
             )
             ->defaultSort('created_at', 'desc');
+=======
+                Tables\Actions\EditAction::make()
+                    ->hidden(fn() => ! EditProductImport::canEdit()),
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(fn() => ! EditProductImport::canEdit()),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make()->hidden(fn() => ! EditProductImport::canEdit()),
+                ]),
+            ])
+            ->HeaderActions([
+                Tables\Actions\Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductImportItemsExport, 'productsImport.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Tables\Actions\Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new ProductImportItemsExport, 'productsImport.xlsx');
+                    }),
+            ])
+            ->recordUrl(function (ProductImport $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditProductImport::getUrl(['record' => $record])
+                    : null;
+            });
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
     }
 
     public static function getRelations(): array
@@ -359,5 +447,16 @@ class ProductImportResource extends Resource
             'create' => Pages\CreateProductImport::route('/create'),
             // 'edit' => Pages\EditProductImport::route('/{record}/edit'),
         ];
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            \App\Filament\Resources\ProductImportResource\Widgets\Importstats::class,
+        ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

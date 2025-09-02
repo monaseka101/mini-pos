@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Collection;
 class ProductsRelationManager extends RelationManager
 {
     protected static string $relationship = 'products';
+    // protected static ?string $title = 'TL GOLD COMPUTER';
 
     public function form(Form $form): Form
     {

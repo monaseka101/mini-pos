@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\Role;
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Filament\Resources\SupplierResource\RelationManagers;
 use App\Filament\Resources\SupplierResource\RelationManagers\ProductImportsRelationManager;
@@ -19,6 +20,15 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Actions\Action;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\SupplierExport;
+use App\Filament\Resources\SupplierResource\Pages\EditSupplier;
+use App\Models\User;
+use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SupplierResource extends Resource
 {
@@ -26,7 +36,7 @@ class SupplierResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-m-arrow-path';
 
-    protected static ?string $navigationGroup = 'Customer & Supplier';
+    protected static ?string $navigationGroup = 'People';
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -54,9 +64,15 @@ class SupplierResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
+<<<<<<< HEAD
                     ->label('ID')
                     ->sortable()
                     ->searchable(),
+=======
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
@@ -93,7 +109,7 @@ class SupplierResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()->hidden(fn() => ! EditSupplier::canEdit()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkAction::make('activate')
@@ -107,6 +123,24 @@ class SupplierResource extends Resource
                     ->color('danger')
                     ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ])
+            ->headerActions([
+                Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new SupplierExport, 'Supplier.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new SupplierExport, 'Supplier.xlsx');
+                    }),
+            ])
+            ->recordUrl(function (Supplier $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditSupplier::getUrl(['record' => $record])
+                    : null;
+            })
             ->defaultSort('active', 'desc');
     }
 
@@ -203,5 +237,9 @@ class SupplierResource extends Resource
             'supplier.view' => Pages\ViewSupplier::route(path: '/{record}'),
             'edit' => Pages\EditSupplier::route('/{record}/edit'),
         ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

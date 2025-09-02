@@ -11,8 +11,14 @@ use Filament\Forms\Get;
 use Flowframe\Trend\Trend;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+<<<<<<< HEAD
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
+=======
+use App\Http\Controllers\ReceiptController;
+use App\Exports\CategoriesExport;
+use Maatwebsite\Excel\Facades\Excel;
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
 
 use Flowframe\Trend\TrendValue;
 use Illuminate\Contracts\Database\Eloquent\Builder as EloquentBuilder;
@@ -134,3 +140,12 @@ Route::get('/dumb', function () {
     )->select('SI.qty', 'SI.unit_price');
     dd($query->get());
 });
+Route::get('/receipt/print/{sale}', [ReceiptController::class, 'print'])->name('receipt.print');
+
+//Route::get('/export/categories/csv', function () {
+//    return Excel::download(new CategoriesExport, 'categories.csv', \Maatwebsite\Excel\Excel::CSV);
+//})->name('export.categories.csv');
+//
+//Route::get('/export/categories/xlsx', function () {
+//    return Excel::download(new CategoriesExport, 'categories.xlsx', \Maatwebsite\Excel\Excel::XLSX);
+//})->name('export.categories.xlsx');

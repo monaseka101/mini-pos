@@ -24,6 +24,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Log;
+use App\Filament\Resources\FontWeight;
+use App\Filament\Resources\UserResource\Pages\EditUser;
+use Filament\Support\Enums\FontWeight as EnumsFontWeight;
+use Filament\Tables\Columns\Layout\Stack;
+use Illuminate\Support\Facades\Auth;
+use Filament\Facades\Filament;
 
 class UserResource extends Resource
 {
@@ -33,7 +39,7 @@ class UserResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-m-users';
 
-    protected static ?string $navigationGroup = 'User Management';
+    protected static ?string $navigationGroup = 'People';
 
     public static function form(Form $form): Form
     {
@@ -74,9 +80,15 @@ class UserResource extends Resource
                         ->defaultImageUrl(fn(User $record) => User::getDefaultAvatar($record->name))
                         ->circular(),
                     Tables\Columns\TextColumn::make('name')
+<<<<<<< HEAD
                         ->searchable()
                         ->weight(FontWeight::Bold)
                         ->formatStateUsing(fn($record) => $record->name . ' (' . $record->role->name . ')'),
+=======
+                        ->searchable(['phone_number', 'user_id'])
+                        ->weight(EnumsFontWeight::Bold)
+                    /* ->formatStateUsing(fn($record) => $record->name . ' (' . $record->role->name . ')') */,
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                     Tables\Columns\TextColumn::make('email')
                         ->searchable(),
                     Tables\Columns\IconColumn::make('active')
@@ -84,6 +96,7 @@ class UserResource extends Resource
                 ])
                     ->alignCenter()
                     ->space(2)
+<<<<<<< HEAD
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('active')
@@ -91,13 +104,19 @@ class UserResource extends Resource
                     ->placeholder('All Users')
                     ->trueLabel('Active ')
                     ->falseLabel('Inactive ')
+=======
+
+
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
             ])
+            ->defaultSort('role', 'asc')
             ->actions([
                 Tables\Actions\Action::make('activate')
                     ->button()
                     ->label('Activate')
                     ->icon('heroicon-m-check-circle')
                     ->color('success')
+<<<<<<< HEAD
                     ->hidden(fn(User $record) => ! auth()->user()->isAdmin() || $record->isAdmin())
                     ->action(fn(User $record) => $record->update(['active' => true])),
                 Tables\Actions\Action::make('deactivate')
@@ -116,6 +135,35 @@ class UserResource extends Resource
             //         ->color('success')
             //         ->action(fn(Collection $records) => $records->each->update(['active' => true])),
             // ])
+=======
+                    ->hidden(fn(User $record) => !EditUser::canEdit() || $record->role === Role::Admin)
+                    ->authorize(fn() => Filament::auth()->user()->role === Role::Admin)
+                    ->action(fn(User $record) => $record->update(['active' => true])),
+
+                Tables\Actions\Action::make('deactivate')
+                    ->button()
+                    ->label('Deactivate')
+                    ->icon('heroicon-m-x-circle')
+                    ->color('danger')
+                    ->hidden(fn(User $record) => !EditUser::canEdit() || $record->role === Role::Admin)
+                    ->authorize(fn() => Filament::auth()->user()->role === Role::Admin)
+                    ->action(fn(User $record) => $record->update(['active' => false])),
+            ])
+            ->recordUrl(function (User $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditUser::getUrl(['record' => $record])
+                    : null;
+            })
+            /* ->bulkActions([
+                Tables\Actions\BulkAction::make('activate')
+                    ->button()
+                    ->label('Activate')
+                    ->icon('heroicon-m-check-circle')
+                    ->color('success')
+                    ->hidden(fn() => ! Edituser::canEdit())
+                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+            ]) */
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
             ->contentGrid(
                 [
                     'md' => 2,
@@ -124,6 +172,7 @@ class UserResource extends Resource
             );
     }
 
+<<<<<<< HEAD
     // public static function table(Table $table): Table
     // {
     //     return $table
@@ -193,6 +242,8 @@ class UserResource extends Resource
     //         ])
     //         ->defaultSort('active', 'desc');
     // }
+=======
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
 
     public static function getRelations(): array
     {
@@ -208,5 +259,9 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             // 'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

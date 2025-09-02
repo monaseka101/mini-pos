@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\Role;
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Filament\Resources\CategoryResource\RelationManagers;
 use App\Models\Category;
@@ -13,6 +14,15 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Actions\Action;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\CategoriesExport;
+use App\Filament\Resources\CategoryResource\Pages\EditCategory;
+use Filament\Facades\Filament;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Illuminate\Support\Facades\Auth;
+
 
 class CategoryResource extends Resource
 {
@@ -48,7 +58,13 @@ class CategoryResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')
+<<<<<<< HEAD
                     ->label('Category ID'),
+=======
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->label("Id")
+                    ->sortable(),
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
                 Tables\Columns\TextColumn::make('name')
                     ->sortable()
                     ->searchable(),
@@ -74,9 +90,11 @@ class CategoryResource extends Resource
                     ->falseLabel('Inactive')
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()->hidden(fn() => ! EditCategory::canEdit()),
             ])
+
             ->bulkActions([
+<<<<<<< HEAD
                 Tables\Actions\BulkAction::make('activate')
                     ->label('Activate Selected')
                     ->icon('heroicon-m-check-circle')
@@ -88,6 +106,30 @@ class CategoryResource extends Resource
                     ->color('danger')
                     ->action(fn(Collection $records) => $records->each->update(['active' => false])),
             ]);
+=======
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make()->hidden(fn() => ! EditCategory::canEdit()),
+                ]),
+            ])
+            ->headerActions([
+                Action::make('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new CategoriesExport, 'categories.csv', \Maatwebsite\Excel\Excel::CSV);
+                    }),
+
+                Action::make('Export XLSX')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->action(function (): \Symfony\Component\HttpFoundation\BinaryFileResponse {
+                        return Excel::download(new CategoriesExport, 'categories.xlsx');
+                    }),
+            ])
+            ->recordUrl(function (Category $record) {
+                return Filament::auth()->user()->role === Role::Admin
+                    ? Pages\EditCategory::getUrl(['record' => $record])
+                    : null;
+            });
+>>>>>>> 8c30c670a9ec1afb31c671cb61f24a17e45bfe73
     }
 
     public static function getRelations(): array
@@ -104,5 +146,9 @@ class CategoryResource extends Resource
             'create' => Pages\CreateCategory::route('/create'),
             'edit' => Pages\EditCategory::route('/{record}/edit'),
         ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }
