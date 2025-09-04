@@ -2,10 +2,13 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\ProductImportResource\Widgets\ExpenseStats;
 use App\Filament\Resources\ProductImportResource\Widgets\ProductImportChart;
+use App\Filament\Resources\ProductResource\Widgets\LowStockProduct;
 use App\Filament\Resources\SaleResource\Widgets\SaleActivityChart;
 use App\Filament\Resources\SaleResource\Widgets\SaleBrandChart;
 use App\Filament\Resources\SaleResource\Widgets\SaleChart;
+use App\Filament\Resources\SaleResource\Widgets\SaleStats;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
@@ -32,10 +35,14 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
-            SaleActivityChart::class,
-            SaleChart::class,
-            ProductImportChart::class,
-            SaleBrandChart::class,
+            SaleStats::class,
+            ExpenseStats::class,
+            // SaleStats::class,
+            LowStockProduct::class,
+            // SaleActivityChart::class,
+            // SaleChart::class,
+            // ProductImportChart::class,
+            // SaleBrandChart::class,
         ];
     }
 }

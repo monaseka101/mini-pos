@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Exports\DetailedSaleExporter;
 use App\Filament\Exports\SaleExporter;
 use App\Filament\Exports\SaleItemExporter;
+use App\Filament\Pages\ShopPage;
 use App\Filament\Resources\SaleResource\Widgets\SaleStats;
 use App\Models\Sale;
 use App\Models\Customer;
@@ -36,6 +37,7 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Infolist;
 use Filament\Tables\Actions\ExportAction as ActionsExportAction;
 use Filament\Tables\Actions\ExportBulkAction;
+use Filament\Tables\Filters\Filter;
 use Illuminate\Support\Facades\Log;
 use OpenSpout\Common\Entity\Style\CellAlignment;
 
@@ -58,34 +60,12 @@ class SaleResource extends Resource
                             ->columns(2),
 
                         Forms\Components\Section::make('Sale Items')
-                            // ->headerActions([
-                            //     Action::make('reset')
-                            //         ->modalHeading('Are you sure?')
-                            //         ->modalDescription('All existing items will be removed from the order.')
-                            //         ->requiresConfirmation()
-                            //         ->color('danger')
-                            //         ->action(fn(Forms\Set $set) => $set('items', [])),
-                            // ])
                             ->schema([
                                 static::getItemsRepeater(),
                             ]),
                     ])
                     ->columnSpan(['lg' => fn(?Sale $record) => $record === null ? 3 : 2]),
-
-                // Forms\Components\Section::make()
-                //     ->schema([
-                //         Forms\Components\Placeholder::make('created_at')
-                //             ->label('Created at')
-                //             ->content(fn(Sale $record): ?string => $record->created_at?->diffForHumans()),
-
-                //         Forms\Components\Placeholder::make('updated_at')
-                //             ->label('Last modified at')
-                //             ->content(fn(Sale $record): ?string => $record->updated_at?->diffForHumans()),
-                //     ])
-                //     ->columnSpan(['lg' => 1])
-                //     ->hidden(fn(?Sale $record) => $record === null),
             ]);
-        // ->columns(4);
     }
 
     public static function getDetailsFormSchema(): array
@@ -108,19 +88,11 @@ class SaleResource extends Resource
                     Forms\Components\TextInput::make('phone')
                         ->maxLength(255),
                 ]),
-
-            Forms\Components\DatePicker::make('sale_date')
-                // ->date()
-                // ->displayFormat(function () {
-                //     return 'd/m/Y';
-                // })
-                ->default(now()),
+            Forms\Components\DatePicker::make('sale_date'),
+            // ->columnSpan('full'),
 
             Forms\Components\RichEditor::make('note')
                 ->columnSpan('full'),
-            // Forms\Components\Toggle::make('active')
-            //     ->default(true)
-            //     ->required(),
         ];
     }
 
@@ -146,9 +118,6 @@ class SaleResource extends Resource
                     )
                     ->distinct()
                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
-                    // ->columnSpan([
-                    //     'md' => 2,
-                    // ])
                     ->searchable(),
                 Forms\Components\TextInput::make('qty')
                     ->label('Quantity')
@@ -159,9 +128,6 @@ class SaleResource extends Resource
                     ->validationMessages([
                         'max' => 'The product in stock have only :max.',
                     ])
-                    // ->columnSpan([
-                    //     'md' => 2,
-                    // ])
                     ->required(),
 
                 Forms\Components\TextInput::make('discount')
@@ -170,9 +136,6 @@ class SaleResource extends Resource
                     ->label('In Stock')
                     ->disabled()
                     ->dehydrated(false),
-                // ->columnSpan([
-                //     'md' => 2,
-                // ]),
 
                 Forms\Components\TextInput::make('unit_price')
                     ->label('Unit Price')
@@ -191,100 +154,12 @@ class SaleResource extends Resource
     public static function getWidgets(): array
     {
         return [
-            SaleStats::class
+            // SaleStats::class
         ];
     }
 
-    // public static function table(Table $table): Table
-    // {
-    //     return $table
-    //         ->columns([
-    //             Tables\Columns\TextColumn::make('id')
-    //                 ->label('Sale #')
-    //                 ->sortable(),
 
-    //             Tables\Columns\TextColumn::make('customer.name')
-    //                 ->label('Customer')
-    //                 ->searchable()
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('sale_date')
-    //                 ->label('Sale Date')
-    //                 ->date()
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('saleItems')
-    //                 ->label('Items')
-    //                 ->badge()
-    //                 ->getStateUsing(fn($record) => $record->saleItems->count())
-    //                 ->color('gray'),
-
-    //             Tables\Columns\TextColumn::make('total')
-    //                 ->label('Total')
-    //                 ->money('USD')
-    //                 ->getStateUsing(function ($record) {
-    //                     return $record->saleItems->sum(function ($item) {
-    //                         $subtotal = $item->qty * $item->unit_price;
-    //                         $discount = $subtotal * (($item->discount ?? 0) / 100);
-    //                         return $subtotal - $discount;
-    //                     });
-    //                 })
-    //                 ->sortable(query: function (Builder $query, string $direction): Builder {
-    //                     return $query->withSum(
-    //                         'saleItems as total',
-    //                         'qty * unit_price * (1 - COALESCE(discount, 0) / 100)'
-    //                     )->orderBy('total', $direction);
-    //                 }),
-
-    //             Tables\Columns\IconColumn::make('active')
-    //                 ->boolean()
-    //                 ->sortable(),
-
-    //             Tables\Columns\TextColumn::make('created_at')
-    //                 ->label('Created')
-    //                 ->dateTime()
-    //                 ->sortable()
-    //                 ->toggleable(isToggledHiddenByDefault: true),
-    //         ])
-    //         ->filters([
-    //             Tables\Filters\TernaryFilter::make('active')
-    //                 ->label('Status')
-    //                 ->boolean()
-    //                 ->trueLabel('Active sales only')
-    //                 ->falseLabel('Inactive sales only')
-    //                 ->native(false),
-
-    //             Tables\Filters\Filter::make('sale_date')
-    //                 ->form([
-    //                     DatePicker::make('from')
-    //                         ->label('From Date'),
-    //                     DatePicker::make('until')
-    //                         ->label('Until Date'),
-    //                 ])
-    //                 ->query(function (Builder $query, array $data): Builder {
-    //                     return $query
-    //                         ->when(
-    //                             $data['from'],
-    //                             fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
-    //                         )
-    //                         ->when(
-    //                             $data['until'],
-    //                             fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
-    //                         );
-    //                 }),
-    //         ])
-    //         ->actions([
-    //             Tables\Actions\EditAction::make(),
-    //             Tables\Actions\DeleteAction::make(),
-    //         ])
-    //         ->bulkActions([
-    //             Tables\Actions\BulkActionGroup::make([
-    //                 Tables\Actions\DeleteBulkAction::make(),
-    //             ]),
-    //         ])
-    //         ->defaultSort('created_at', 'desc');
-    // }
-
+    // Table Display
     public static function table(Table $table): Table
     {
         return $table
@@ -296,11 +171,11 @@ class SaleResource extends Resource
                 Tables\Columns\TextColumn::make('customer.name')
                     ->tooltip('View customer information')
                     ->searchable()
-                    ->sortable()
-                    ->url(
-                        fn($record) => CustomerResource::getUrl('customer.view', ['record' => $record->customer_id]),
-                        shouldOpenInNewTab: true
-                    ),
+                    ->sortable(),
+                // ->url(
+                //     fn($record) => CustomerResource::getUrl('customer.view', ['record' => $record->customer_id ?? null]),
+                //     shouldOpenInNewTab: true
+                // ),
 
                 Tables\Columns\TextColumn::make('products')
                     ->label('Products')
@@ -321,8 +196,8 @@ class SaleResource extends Resource
                             ->selectRaw('sales.*, SUM((sale_items.unit_price * sale_items.qty) * (1 - COALESCE(sale_items.discount, 0)/100)) as total_price')
                             ->orderBy('total_price', $direction);
                     })
-
-                    ->badge()
+                    ->weight(FontWeight::Bold)
+                    // ->badge()
                     ->color('success'),
                 // ->toggleable(),
 
@@ -347,16 +222,34 @@ class SaleResource extends Resource
                     ->toggleable(true),
             ])
             ->filters([
-                Tables\Filters\Filter::make('date_range')
+                Filter::make('sale_date')
                     ->form([
-                        Forms\Components\DatePicker::make('from_date'),
-                        Forms\Components\DatePicker::make('to_date'),
+                        DatePicker::make('sale_from')
+                            ->label('Sale From'),
+                        DatePicker::make('sale_until')
+                            ->label('Sale Until'),
                     ])
-                    ->query(function ($query, array $data) {
+                    ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when($data['from_date'], fn($q) => $q->whereDate('sale_date', '>=', $data['from_date']))
-                            ->when($data['to_date'], fn($q) => $q->whereDate('sale_date', '<=', $data['to_date']));
+                            ->when(
+                                $data['sale_from'],
+                                callback: fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
+                            )
+                            ->when(
+                                $data['sale_until'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
+                            );
                     }),
+                // Tables\Filters\Filter::make('date_range')
+                // ->form([
+                //     Forms\Components\DatePicker::make('from_date'),
+                //     Forms\Components\DatePicker::make('to_date'),
+                // ])
+                // ->query(function ($query, array $data) {
+                //     return $query
+                //         ->when($data['from_date'], fn($q) => $q->whereDate('sale_date', '>=', $data['from_date']))
+                //         ->when($data['to_date'], fn($q) => $q->whereDate('sale_date', '<=', $data['to_date']));
+                // }),
                 Tables\Filters\SelectFilter::make('customer')
                     ->preload()
                     ->searchable()
@@ -387,41 +280,18 @@ class SaleResource extends Resource
                     ->multiple()
                     ->preload(),
             ])
-            // ->filters([
-            //     Tables\Filters\SelectFilter::make('customer')
-            //         ->preload()
-            //         ->searchable()
-            //         ->multiple()
-            //         ->relationship('customer', titleAttribute: 'name'),
-            //     Tables\Filters\SelectFilter::make('Seller')
-            //         ->preload()
-            //         ->searchable()
-            //         ->multiple()
-            //         ->relationship('user', 'name'),
-            //     // Tables\Filters\Filter::make('sale_date')
-            //     //     ->form([
-            //     //         DatePicker::make('from')
-            //     //             ->label('From Date'),
-            //     //         DatePicker::make('until')
-            //     //             ->label('Until Date'),
-            //     //     ])
-            //     //     ->query(function (Builder $query, array $data): Builder {
-            //     //         return $query
-            //     //             ->when(
-            //     //                 $data['from'],
-            //     //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '>=', $date),
-            //     //             )
-            //     //             ->when(
-            //     //                 $data['until'],
-            //     //                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
-            //     //             );
-            //     //     }),
-            // ])
+
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (Sale $record) {
+                        Log::info($record);
+                        foreach ($record->items as $item) {
+                            $product = $item->product;
+                            $product->increment('stock', $item->qty);
+                        }
+                    })
             ])
             ->bulkActions([
 
@@ -451,6 +321,7 @@ class SaleResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
+    // InfoList Display
     public static function infolist(Infolist $infolist): Infolist
     {
         return $infolist
@@ -587,7 +458,9 @@ class SaleResource extends Resource
     {
         return [
             'index' => Pages\ListSales::route('/'),
+            'list' => Pages\CustomListSale::route('/custom-list'),
             'create' => Pages\CreateSale::route('/create'),
+            'invoice' => Pages\SaleInvoice::route('/{record}/invoice'),
             // 'view' => Pages\ViewSale::route('/{record}'),
             // 'edit' => Pages\EditSale::route('/{record}/edit'),
         ];

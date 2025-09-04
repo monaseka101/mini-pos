@@ -1,5 +1,7 @@
 <?php
 
+use App\Filament\Resources\ProductResource\Pages\DisplayProduct;
+use App\Filament\Resources\SaleResource;
 use App\Models\Product;
 use App\Models\ProductImport;
 use App\Models\ProductImportItem;
@@ -90,47 +92,7 @@ Route::get('/data', function () {
         ->get();
 });
 
-
-
-Artisan::command('play', function () {
-    $sql =  SaleItem::query()
-        ->select(
-            'P.name',
-            \DB::raw('SUM(sale_items.qty) as total_qty'),
-            \DB::raw('SUM((sale_items.unit_price * sale_items.qty) * (1 - COALESCE(sale_items.discount, 0)/100)) as total_amount')
-        )
-        ->join('products as P', 'sale_items.product_id', '=', 'P.id')
-        ->groupBy('p.id');
-    foreach(collect($sql->get()) as $sale) {
-        dump($sale);
-    }
-
+Artisan::command('dump', function () {
+    dd(SaleItem::whereRaw('DATE(created_at) = ?', [today()->toDateString()])->get());
 });
 
-
-Route::get('/dumb', function () {
-    $result = Trend::query(
-        Sale::query()->join('sale_items', 'sale.id', '=', 'sale_items.sale_id')
-    );
-    $selectedYear = now()->year;
-    $data = Trend::query(
-        Sale::query()
-            ->join('sale_items as SI', 'sales.id', '=', 'SI.sale_id')
-    )
-        ->dateColumn('sales.sale_date')
-        ->between(
-            start: Carbon::createFromDate($selectedYear, 1, 1)->startOfYear(),
-            end: Carbon::createFromDate($selectedYear, 12, 31)->endOfYear(),
-        )
-        ->perMonth()
-        ->sum('SI.qty');
-    // dd($data);
-
-    $query =  Sale::query()->join(
-        'sale_items as SI',
-        'sales.id',
-        '=',
-        'SI.sale_id'
-    )->select('SI.qty', 'SI.unit_price');
-    dd($query->get());
-});

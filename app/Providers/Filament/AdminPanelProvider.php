@@ -36,7 +36,7 @@ class AdminPanelProvider extends PanelProvider
             ->profile(EditProfile::class, isSimple: false)
             ->brandLogo(Storage::url(path: 'default/bg.png'))
             ->brandLogoHeight('60px')
-            ->databaseNotifications()
+            // ->databaseNotifications()
             // ->brandName('Computer Shop')
             ->id('admin')
             ->globalSearch(false)

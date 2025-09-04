@@ -11,12 +11,14 @@ class ListProducts extends ListRecords
 {
     use ExposesTableToWidgets;
 
+
     protected static string $resource = ProductResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make(),
+
         ];
     }
 

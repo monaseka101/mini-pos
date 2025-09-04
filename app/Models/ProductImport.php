@@ -43,6 +43,39 @@ class ProductImport extends Model
             ->orderBy('total_price', $direction);
     }
 
+    // Expense Data Summary for State
+    public static function totalExpenseForToday()
+    {
+        return static::query()
+            ->whereDate('import_date', today())
+            // ->with('items')
+            ->get()
+            ->sum(function (ProductImport $productImport) {
+                return $productImport->totalPrice();
+            });
+    }
+
+    public static function totalExpenseThisMonth()
+    {
+        return static::query()
+            ->whereMonth('import_date', now()->month)
+            ->whereYear('import_date', now()->year)            // ->with('items')
+            ->get()
+            ->sum(function (ProductImport $productImport) {
+                return $productImport->totalPrice();
+            });
+    }
+
+    public static function totalExpenseThisYear()
+    {
+        return static::query()
+            ->whereYear('import_date', now()->year)            // ->with('items')
+            ->get()
+            ->sum(function (ProductImport $productImport) {
+                return $productImport->totalPrice();
+            });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

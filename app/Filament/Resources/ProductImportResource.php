@@ -10,6 +10,7 @@ use App\Models\ProductImport;
 use Filament\Actions\Action;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
@@ -22,6 +23,7 @@ use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
 use Filament\Tables\Actions\ExportBulkAction;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -41,23 +43,6 @@ class ProductImportResource extends Resource
     {
         return $form
             ->schema([
-                Section::make()
-                    ->schema([
-                        Forms\Components\Select::make('supplier_id')
-                            ->label('Supplier')
-                            ->relationship('supplier', 'name', modifyQueryUsing: fn(Builder $query) => $query->where('active', true))
-                            ->preload()
-                            ->searchable()
-                            ->required(),
-                        Forms\Components\DatePicker::make('import_date')
-                            ->label('Import Date')
-                            ->displayFormat('d/m/Y')
-                            // ->native(false)
-                            ->default(now())
-                            ->required(),
-                        Forms\Components\RichEditor::make('note')
-                            ->columnSpan('full'),
-                    ])->columns(2),
                 Section::make('Product Items')
                     ->schema([
                         Repeater::make('items')
@@ -65,7 +50,7 @@ class ProductImportResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('product_id')
                                     ->label('Product')
-                                    ->relationship('product', 'name', fn($query) => $query->where('active', true))
+                                    ->relationship('product', 'name', fn($query) => $query->where('active', true)->orderBy('stock'))
                                     ->preload()
                                     ->required()
                                     ->distinct()
@@ -89,7 +74,25 @@ class ProductImportResource extends Resource
                             ->hiddenLabel()
                             ->columns(3)
                             ->required()
-                    ])
+                    ]),
+                Section::make()
+                    ->schema([
+                        Forms\Components\Select::make('supplier_id')
+                            ->label('Supplier')
+                            ->relationship('supplier', 'name', modifyQueryUsing: fn(Builder $query) => $query->where('active', true))
+                            ->preload()
+                            ->searchable()
+                            ->required(),
+                        Forms\Components\DatePicker::make('import_date')
+                            ->label('Import Date')
+                            ->displayFormat('d/m/Y')
+                            // ->native(false)
+                            ->default(now())
+                            ->required(),
+                        Forms\Components\RichEditor::make('note')
+                            ->columnSpan('full'),
+                    ])->columns(2),
+
             ]);
     }
 
@@ -226,17 +229,6 @@ class ProductImportResource extends Resource
                         // Option 1: Simple approach (may cause N+1 queries)
                         return $record->listProducts();
                     }),
-
-                Tables\Columns\TextColumn::make('supplier.name')
-                    ->url(fn($record) => SupplierResource::getUrl('supplier.view', ['record' => $record->supplier_id]), true)
-                    ->tooltip("link to view supplier's information")
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('import_date')
-                    ->label('Import Date')
-                    ->date('d/m/Y')
-                    ->weight(FontWeight::Bold)
-                    ->dateTooltip('d/M/Y')
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('total_qty')
                     ->label('Total Qty')
                     ->sortable(query: function (Builder $query, string $direction): Builder {
@@ -253,14 +245,28 @@ class ProductImportResource extends Resource
                         // Option 1: Simple approach (may cause N+1 queries)
                         return $record->totalQty();
                     }),
+
                 Tables\Columns\TextColumn::make('total_price')
                     ->label('Total Price')
+                    ->color('danger')
                     ->money(currency: 'usd')
                     ->getStateUsing(fn(ProductImport $record) => $record->totalPrice())
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return ProductImport::sortByTotalPrice($query, $direction);
                     })
                     ->weight(FontWeight::Bold),
+
+                Tables\Columns\TextColumn::make('import_date')
+                    ->label('Import Date')
+                    ->date('d/m/Y')
+                    ->dateTooltip('d/M/Y')
+                    ->sortable(),
+
+
+                Tables\Columns\TextColumn::make('supplier.name')
+                    ->url(fn($record) => SupplierResource::getUrl('supplier.view', ['record' => $record->supplier_id]), true)
+                    ->tooltip("link to view supplier's information")
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('note')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->html(),
@@ -278,16 +284,34 @@ class ProductImportResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\Filter::make('date_range')
+                Filter::make('import_date')
                     ->form([
-                        Forms\Components\DatePicker::make('from_date'),
-                        Forms\Components\DatePicker::make('to_date'),
+                        DatePicker::make('import_from')
+                            ->label('Import From'),
+                        DatePicker::make('import_util')
+                            ->label('Import Until'),
                     ])
-                    ->query(function ($query, array $data) {
+                    ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when($data['from_date'], fn($q) => $q->whereDate('import_date', '>=', $data['from_date']))
-                            ->when($data['to_date'], fn($q) => $q->whereDate('import_date', '<=', $data['to_date']));
+                            ->when(
+                                $data['import_from'],
+                                callback: fn(Builder $query, $date): Builder => $query->whereDate('import_date', '>=', $date),
+                            )
+                            ->when(
+                                $data['import_util'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('import_date', '<=', $date),
+                            );
                     }),
+                // Tables\Filters\Filter::make('date_range')
+                //     ->form([
+                //         Forms\Components\DatePicker::make('from_date'),
+                //         Forms\Components\DatePicker::make('to_date'),
+                //     ])
+                //     ->query(function ($query, array $data) {
+                //         return $query
+                //             ->when($data['from_date'], fn($q) => $q->whereDate('import_date', '>=', $data['from_date']))
+                //             ->when($data['to_date'], fn($q) => $q->whereDate('import_date', '<=', $data['to_date']));
+                //     }),
 
                 Tables\Filters\SelectFilter::make('supplier')
                     ->relationship('supplier', 'name')

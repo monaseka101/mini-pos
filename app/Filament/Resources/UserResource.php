@@ -108,14 +108,6 @@ class UserResource extends Resource
                     ->color('danger')
                     ->action(fn(User $record) => $record->update(['active' => false])),
             ])
-            // ->bulkActions([
-            //     Tables\Actions\BulkAction::make('activate')
-            //         ->button()
-            //         ->label('Activate')
-            //         ->icon('heroicon-m-check-circle')
-            //         ->color('success')
-            //         ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-            // ])
             ->contentGrid(
                 [
                     'md' => 2,

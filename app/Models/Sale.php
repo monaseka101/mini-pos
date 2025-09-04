@@ -43,6 +43,7 @@ class Sale extends Model
             ->join(', ');
     }
 
+    // Sale Data Summary for State
     public static function totalSaleForToday()
     {
         return static::query()
@@ -50,7 +51,7 @@ class Sale extends Model
             ->with('items')
             ->get()
             ->sum(function (Sale $sale) {
-                return $sale->totalPrice;
+                return $sale->total_price;
             });
     }
 

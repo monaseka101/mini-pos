@@ -23,6 +23,7 @@ class CreateSale extends CreateRecord
     use HasWizard;
 
     protected static string $resource = SaleResource::class;
+    // protected static ?string $title = 'Custom Page Title';
 
     public function form(Form $form): Form
     {
@@ -41,6 +42,7 @@ class CreateSale extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['user_id'] = auth()->id();
+        // $data['sale_date'] = now();
         return $data;
     }
 
@@ -58,17 +60,18 @@ class CreateSale extends CreateRecord
     protected function getSteps(): array
     {
         return [
-            Step::make('Sale Details')
-                ->schema([
-                    Section::make()->schema(SaleResource::getDetailsFormSchema())->columns(),
-                ]),
-
             Step::make('Sale Items')
                 ->schema([
                     Section::make()->schema([
                         SaleResource::getItemsRepeater()
                     ]),
                 ]),
+            Step::make('Sale Details')
+                ->schema([
+                    Section::make()->schema(SaleResource::getDetailsFormSchema())->columns(),
+                ]),
+
+
         ];
     }
 

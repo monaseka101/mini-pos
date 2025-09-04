@@ -148,6 +148,7 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->query(Product::withSoldCount())
             ->columns([
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
@@ -179,6 +180,10 @@ class ProductResource extends Resource
                         fn($record) =>
                         $record->stock <= 0 ? 'Out of stock' : ($record->stock <= $record->stock_security ? 'Low stock - below security level' : 'Stock level is good')
                     ),
+                // Tables\Columns\TextColumn::make('stock_security')
+                //     ->label('Stock Security')
+                //     ->badge()
+                //     ->color(color: 'primary'),
 
                 Tables\Columns\TextColumn::make('brand.name')
                     ->label('Brand')
@@ -187,7 +192,14 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('category.name')
                     ->badge()
                     ->color('info'),
+                Tables\Columns\TextColumn::make('sale_items_sum_qty')
+                    ->label('Sold Count')
+                    ->weight(FontWeight::Bold)
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('description')
+                    ->wrap()
                     ->toggleable(true)
                     ->html(),
                 Tables\Columns\TextColumn::make('user.name')
@@ -195,10 +207,7 @@ class ProductResource extends Resource
                     ->label('Created By'),
                 Tables\Columns\IconColumn::make('active')
                     ->boolean(),
-                // ->url(
-                //     fn ($record) => $record->user ? route('filament.admin.resources.users.view', ['record' => $record->user]) : null,
-                //     shouldOpenInNewTab: true
-                // ),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -227,16 +236,14 @@ class ProductResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
-            // ->headerActions([
-            //     ActionsExportAction::make()
-            //         ->exporter(ProductExporter::class)
-            // ])
+
             ->bulkActions([
                 ExportBulkAction::make()
                     ->label('Export Selected Products')
                     ->color('primary')
                     ->exporter(ProductExporter::class)
             ])
+            ->recordUrl(null)
             // ->bulkActions([
             //     Tables\Actions\BulkAction::make('activate')
             //         ->label('Activate Selected')
@@ -251,7 +258,6 @@ class ProductResource extends Resource
             // ])
             ->defaultSort(function (Builder $query) {
                 return $query
-
                     ->orderByDesc('created_at');
             });
     }
@@ -259,7 +265,7 @@ class ProductResource extends Resource
     public static function getWidgets(): array
     {
         return [
-            ProductStats::class
+            // ProductStats::class
         ];
     }
 
@@ -362,6 +368,8 @@ class ProductResource extends Resource
     {
         return [
             'index' => Pages\ListProducts::route('/'),
+            'display' => Pages\DisplayProduct::route('{record}/display'),
+            'list' => Pages\CustomListProducts::route('/list'),
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
