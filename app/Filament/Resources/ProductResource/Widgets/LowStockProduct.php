@@ -17,7 +17,7 @@ class LowStockProduct extends BaseWidget
 {
     protected int | string | array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Low Stock Products.';
+    protected static ?string $heading = 'Low Stock Alert.';
 
     public function table(Table $table): Table
     {
@@ -106,10 +106,10 @@ class LowStockProduct extends BaseWidget
             ])
             ->headerActions([
                 Actions\Action::make('to_import')
-                    ->url(ProductImportResource::getUrl('create'))
+                    ->url('admin/import-page')
                     ->label('Import Products')
                     ->icon('heroicon-o-plus')
-                    // ->color('success')
+                // ->color('success')
             ]);
     }
 }

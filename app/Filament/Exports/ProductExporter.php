@@ -46,12 +46,12 @@ class ProductExporter extends Exporter
             ->setCellVerticalAlignment(CellVerticalAlignment::CENTER);;
     }
 
-    public function getFormats(): array
-    {
-        return [
-            EnumsExportFormat::Xlsx
-        ];
-    }
+    // public function getFormats(): array
+    // {
+    //     return [
+    //         EnumsExportFormat::Xlsx
+    //     ];
+    // }
 
     public static function getCompletedNotificationBody(Export $export): string
     {

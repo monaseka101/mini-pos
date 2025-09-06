@@ -35,12 +35,20 @@ class ProductImport extends Model
             ->join(', ');
     }
 
-    public static function sortByTotalPrice(Builder $query, string $direction)
+    public static function sortByTotalPrice(Builder $query, string $direction): Builder
     {
-        return $query->join('product_import_items', 'product_imports.id', '=', 'product_import_items.product_import_id')
-            ->groupBy('product_imports.id')
-            ->selectRaw('product_imports.*, SUM(product_import_items.qty * product_import_items.unit_price)as total_price')
-            ->orderBy('total_price', $direction);
+        // Use a subquery to calculate total_price per import
+        return $query->select('product_imports.*')
+            ->leftJoinSub(
+                ProductImportItem::select('product_import_id')
+                    ->selectRaw('SUM(qty * unit_price) as total_price')
+                    ->groupBy('product_import_id'),
+                'items',
+                'items.product_import_id',
+                '=',
+                'product_imports.id'
+            )
+            ->orderBy('items.total_price', $direction);
     }
 
     // Expense Data Summary for State

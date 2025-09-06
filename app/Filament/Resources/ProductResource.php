@@ -36,6 +36,9 @@ use Filament\Tables\Actions\ExportAction as ActionsExportAction;
 use Filament\Tables\Actions\ExportBulkAction;
 use Filament\Tables\Columns\Layout\Split as LayoutSplit;
 use SebastianBergmann\CodeCoverage\Report\Html\Colors;
+use Filament\Infolists\Components\RepeatableEntry;
+use Illuminate\Support\Facades\Auth;
+use App\Enums\Role;
 
 use function Laravel\Prompts\table;
 
@@ -194,13 +197,14 @@ class ProductResource extends Resource
                     ->color('info'),
                 Tables\Columns\TextColumn::make('sale_items_sum_qty')
                     ->label('Sold Count')
+                    ->default(0)
                     ->weight(FontWeight::Bold)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('description')
                     ->wrap()
-                    ->toggleable(true)
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->html(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->toggleable(isToggledHiddenByDefault: true)
@@ -330,8 +334,12 @@ class ProductResource extends Resource
                 InfoSection::make('Additional Information')
                     ->icon('heroicon-m-information-circle')
                     ->schema([
-                        InfoGrid::make(4)
+                        InfoGrid::make(5)
                             ->schema([
+                                TextEntry::make('id')
+                                    ->label('ID')
+                                    ->badge()
+                                    ->color('info'),
                                 TextEntry::make('category.name')
                                     ->label('Category')
                                     ->badge()
@@ -353,6 +361,47 @@ class ProductResource extends Resource
                             ]),
                     ])
                     ->collapsible(),
+                InfoSection::make('Import History')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->collapsible()
+                    ->schema([
+                        // Mini table / preview of recent imports (last 5)
+                        RepeatableEntry::make('productimportItems')
+                            ->label('')
+                            ->schema([
+                                InfoGrid::make(6)->schema([
+                                    TextEntry::make('productImport.id')->label('Import ID'),
+                                    TextEntry::make('productImport.supplier.name')->label('Supplier'),
+                                    TextEntry::make('qty')->label('Quantity'),
+                                    TextEntry::make('unit_price')->label('Unit Price')->money('usd'),
+                                    TextEntry::make('productImport.import_date')->label('Import Date')->date('d/m/Y'),
+                                    TextEntry::make('productImport.user.name')->label('Imported By'),
+                                ]),
+                            ])
+                            ->columns(1)
+                            ->default(fn($record) => $record->productimportItems->take(5)),
+
+                    ]),
+                /* InfoSection::make('')
+                    ->schema([ // Button linking to full DetailPage
+                        InfoGrid::make(1)->schema([
+                            TextEntry::make('view_full_import_history')
+                                ->default(fn($record) => $record->productimportItems?->take(5) ?? collect())
+
+                                ->label('')
+                                ->html()
+                                ->state(fn($record) => '
+            <div style="text-align: right;">
+                <a href="' . \App\Filament\Pages\DetailPage::getUrl() . '?product_id=' . $record->id . '" target="_blank"
+                    style="background-color: rgb(59, 130, 246); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                    📄 View Full Import History
+                </a>
+            </div>
+        ')
+                                ->columnSpanFull(),
+                        ]),
+                    ]), */
+
             ]);
     }
 
@@ -373,5 +422,9 @@ class ProductResource extends Resource
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
+    }
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->role !== Role::Cashier;
     }
 }

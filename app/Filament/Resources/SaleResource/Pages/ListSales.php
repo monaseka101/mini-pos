@@ -18,12 +18,12 @@ class ListSales extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-                ->label('Sale')
+                ->label('Create Sale')
                 ->url('shop-page'),
-            Actions\Action::make('sd')
-                ->color('danger')
-                ->url(SaleResource::getUrl('create'))
-                ->label('Dumb Sale'),
+            // Actions\Action::make('sd')
+            //     ->color('danger')
+            //     ->url(SaleResource::getUrl('create'))
+            //     ->label('Dumb Sale'),
         ];
     }
 

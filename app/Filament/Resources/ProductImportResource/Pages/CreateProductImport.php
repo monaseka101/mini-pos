@@ -15,6 +15,7 @@ class CreateProductImport extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['user_id'] = auth()->id();
+        $data['import_date'] = now();
         return $data;
     }
 

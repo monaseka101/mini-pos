@@ -2,6 +2,7 @@
 
 use App\Filament\Resources\ProductResource\Pages\DisplayProduct;
 use App\Filament\Resources\SaleResource;
+use App\Http\Controllers\ReceiptController;
 use App\Models\Product;
 use App\Models\ProductImport;
 use App\Models\ProductImportItem;
@@ -24,7 +25,7 @@ use function Livewire\of;
 // Route::get('/', function () {
 //     return view('welcome');
 // });
-
+Route::get('/receipt/print/{sale}', [ReceiptController::class, 'print'])->name('receipt.print');
 Artisan::command('test', function () {
     // What is Laravel Trend ?
     // What does it use for?
@@ -95,4 +96,3 @@ Route::get('/data', function () {
 Artisan::command('dump', function () {
     dd(SaleItem::whereRaw('DATE(created_at) = ?', [today()->toDateString()])->get());
 });
-

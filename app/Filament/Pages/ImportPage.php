@@ -7,8 +7,11 @@ namespace App\Filament\Pages;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ProductImport;
+use App\Models\ProductImportItem;
 use Filament\Pages\Page;
 use Filament\Forms;
+use Filament\Forms\Form;
 use Filament\Tables;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Hidden;
@@ -20,16 +23,17 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
-use Filament\Tables\Filters\Filter;
 
-class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contracts\HasForms
+
+class ImportPage extends Page implements Tables\Contracts\HasTable, Forms\Contracts\HasForms
 {
     use Tables\Concerns\InteractsWithTable;
     use Forms\Concerns\InteractsWithForms;
 
 
-    protected static string $view = 'filament.pages.shop-page';
+    protected static string $view = 'filament.pages.import-page';
     protected static ?string $title = '';
 
 
@@ -39,24 +43,28 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
     // formData used to store cart items and customer for sale
     public ?array $formData = [
         'items' => [],
-        'customer_id' => null,
+        'supplier_id' => null,
     ];
 
 
-    public function form(Forms\Form $form): Forms\Form
+    public function form(Form $form): Form
     {
         return $form
             ->schema([
                 // Customer selection - always visible and required when items exist
-                Forms\Components\Select::make('customer_id')
-                    ->label('Select Customer')
-                    ->options(\App\Models\Customer::pluck('name', 'id'))
+                Forms\Components\Select::make('supplier_id')
+                    ->label('Select Supplier')
+                    ->options(\App\Models\Supplier::pluck('name', 'id'))
                     ->searchable()
-                    ->placeholder('Select a customer')
+                    ->placeholder('Select the supplier')
                     ->visible(fn(callable $get) => !empty($get('items')))
                     ->required(fn(callable $get) => !empty($get('items')))
                     ->columnSpanFull(),
-
+                Forms\Components\Textarea::make('note')
+                    ->label('Note')
+                    ->columnSpanFull()
+                    ->visible(fn(callable $get) => !empty($get('items')))
+                    ->nullable(),
 
                 Repeater::make('items')
                     ->reorderable(false)
@@ -65,6 +73,7 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                         Hidden::make('product_id'),
                         TextInput::make('name')->disabled(),
                         TextInput::make('qty')
+                            ->label('Quantity')
                             ->type('number')
                             ->default(1)
                             ->minValue(1)
@@ -72,22 +81,20 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn() => $this->updateTotals()),
                         TextInput::make('stock')
-                            ->label('In Stock')
+                            ->label('Currently In Stock')
                             ->disabled(),
                         TextInput::make('unit_price')
-                            ->label('Unit Price')
+                            ->label('Per Unit Price')
                             ->prefix('$')
                             ->numeric()
-                            ->step(0.01)
-                            ->disabled(),
-                        TextInput::make('discount')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0)
-                            ->maxValue(100)
-                            ->suffix('%')
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(fn() => $this->updateTotals()),
+                            ->required(),
+                        TextInput::make('product_price')
+                            ->label('Current Selling Price')
+                            ->disabled()
+                            ->dehydrated(false) // prevents it from being saved to DB
+                            ->prefix('$')
+
+
                     ])
                     ->columns(5)
                     ->default([])
@@ -111,12 +118,12 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
         foreach ($items as &$item) {
             $qty = (int) ($item['qty'] ?? 1);
             $unitPrice = (float) ($item['unit_price'] ?? 0);
-            $discount = (int) ($item['discount'] ?? 0);
+            $product = \App\Models\Product::find($item['product_id']);
 
-
+            // set current product price (live from DB)
+            $item['product_price'] = $product?->price ?? 0;
             $subtotal = $qty * $unitPrice;
-            $discountAmount = $subtotal * ($discount / 100);
-            $item['subtotal'] = $subtotal - $discountAmount;
+            $item['subtotal'] = $subtotal;
         }
 
 
@@ -130,11 +137,10 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
         return collect($items)->sum('subtotal');
     }
 
-
     public function checkout(): void
     {
         $items = $this->formData['items'] ?? [];
-        $customerId = $this->formData['customer_id'] ?? null;
+        $supplierId = $this->formData['supplier_id'] ?? null;
 
 
         // Validate cart is not empty
@@ -147,25 +153,24 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
             return;
         }
 
-
         // Validate customer is selected
-        if (!$customerId) {
+        if (!$supplierId) {
             Notification::make()
-                ->title('Please select a customer!')
-                ->body('A customer must be selected to complete the sale.')
+                ->title('Please select The Supplier!')
+                ->body('A Supplier must be selected to complete the Import.')
                 ->danger()
                 ->send();
             return;
         }
 
-
         try {
-            DB::transaction(function () use ($items, $customerId) {
+            DB::transaction(function () use ($items, $supplierId) {
                 // Create the main sale record with proper customer_id
-                $sale = Sale::create([
-                    'user_id' => auth()->id(),
-                    'customer_id' => $customerId,
-                    'sale_date' => now(),
+                $product_import = ProductImport::create([
+                    'user_id' => Auth::id(),
+                    'supplier_id' => $supplierId,
+                    'import_date' => now(),
+                    'note' => $this->formData['note'] ?? null,
                     // 'total_amount' => $this->getTotalAmount(),
                 ]);
 
@@ -174,54 +179,54 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                 foreach ($items as $item) {
                     // Validate stock availability
                     $product = Product::find($item['product_id']);
-                    if (!$product || $product->stock < $item['qty']) {
+                    /* if (!$product || $product->stock < $item['qty']) {
                         throw new \Exception("Insufficient stock for {$item['name']}. Available: {$product->stock}, Required: {$item['qty']}");
-                    }
+                    }  */
 
 
-                    SaleItem::create([
-                        'sale_id' => $sale->id,
+                    ProductImportItem::create([
+                        'product_import_id' => $product_import->id,
                         'product_id' => $item['product_id'],
                         'qty' => (int) $item['qty'],
                         'unit_price' => (float) $item['unit_price'],
-                        'discount' => (int) ($item['discount'] ?? 0),
+
                     ]);
 
-
                     // Update product stock
-                    $product->decrement('stock', $item['qty']);
+                    $product->increment('stock', $item['qty']);
                 }
             });
 
 
             // Clear cart and customer selection after successful checkout
             $this->formData['items'] = [];
-            $this->formData['customer_id'] = null;
+            $this->formData['supplier_id'] = null;
 
 
             Notification::make()
-                ->title('Sale completed successfully!')
-                ->body('Sale has been processed and inventory updated.')
+                ->title('Import completed successfully!')
+                ->body('Import has been processed and inventory updated.')
                 ->success()
                 ->send();
         } catch (\Exception $e) {
-            Log::error('Sale failed: ' . $e->getMessage());
+            Log::error('Import failed: ' . $e->getMessage());
 
 
             Notification::make()
-                ->title('Sale failed')
+                ->title('Import failed')
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
         }
     }
 
+
     public function table(Table $table): Table
     {
         return $table
             ->header(null)
-            ->query(Product::query()->where('active', 1)->where('stock', '>', 0))
-            ->defaultSort('stock', 'desc')
+            ->query(Product::query()->where('active', 1))
+            ->defaultSort('stock')
             ->columns([
                 Stack::make([
                     ImageColumn::make('image')
@@ -241,15 +246,15 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                         ->limit(50)
                         ->color('gray')
                         ->wrap(),
-                    TextColumn::make('brand.name')
-                        ->searchable()
-                        ->label('Brand')
-                        ->badge()
-                        ->color(color: 'info'),
-                    TextColumn::make('category.name')
-                        ->badge()
-                        ->color('info')
-                        ->searchable(),
+                    // TextColumn::make('brand.name')
+                    //     ->searchable()
+                    //     ->label('Brand')
+                    //     ->badge()
+                    //     ->color(color: 'info'),
+                    // TextColumn::make('category.name')
+                    //     ->badge()
+                    //     ->color('info')
+                    //     ->searchable(),
 
 
                     TextColumn::make('price')
@@ -263,39 +268,17 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                         ->badge()
                         ->color(fn($state) => $state > 0 ? 'success' : 'danger')
                         ->formatStateUsing(fn($state) => $state > 0 ? "In Stock: {$state}" : 'Out of Stock'),
+
+
                 ])
             ])
             ->actions([
                 Tables\Actions\Action::make('addToCart')
-                    ->label('Add to Sale')
-                    ->icon('heroicon-o-shopping-cart')
+                    ->label('Add to Import')
+                    ->icon('heroicon-s-arrow-down-tray')
                     ->button()
                     ->color('primary')
                     ->action(fn($record) => $this->addToCart($record)),
-            ])
-            ->filters([
-                Filter::make('price')
-                    ->form([
-                        Forms\Components\TextInput::make('min_price')
-                            ->numeric()
-                            ->label('Min Price')
-                            ->prefix('$'),
-                        Forms\Components\TextInput::make('max_price')
-                            ->numeric()
-                            ->label('Max Price')
-                            ->prefix('$'),
-                    ])
-                    ->query(function ($query, array $data) {
-                        return $query
-                            ->when(
-                                $data['min_price'],
-                                fn($q, $min) => $q->where('price', '>=', $min)
-                            )
-                            ->when(
-                                $data['max_price'],
-                                fn($q, $max) => $q->where('price', '<=', $max)
-                            );
-                    }),
             ])
             ->contentGrid([
                 'sm' => 1,
@@ -321,14 +304,14 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
         if ($existingIndex !== false) {
             // Check stock before increasing quantity
             $newQty = ($items[$existingIndex]['qty'] ?? 1) + 1;
-            if ($newQty > $product->stock) {
+            /* if ($newQty > $product->stock) {
                 Notification::make()
                     ->title('Insufficient stock!')
                     ->body("Only {$product->stock} units available for {$product->name}")
                     ->warning()
                     ->send();
                 return;
-            }
+            } */
 
 
             $items[$existingIndex]['qty'] = $newQty;
@@ -339,9 +322,8 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                 'name' => $product->name,
                 'stock' => $product->stock,
                 'qty' => 1,
-                'unit_price' => $product->price,
-                'discount' => 0,
-                'subtotal' => $product->price,
+                'unit_price' => 0,
+
             ];
         }
 
@@ -351,7 +333,7 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
         Notification::make()
             ->title('Product added')
             ->seconds(2)
-            ->body("{$product->name} has been added to sale")
+            ->body("{$product->name} has been added to import")
             ->success()
             ->send();
     }

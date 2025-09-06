@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class Sale extends Model
 {
@@ -91,5 +92,21 @@ class Sale extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public static function sortByTotalPrice(Builder $query, string $direction): Builder
+    {
+        return $query
+            ->select('sales.*')
+            ->leftJoinSub(
+                SaleItem::select('sale_id')
+                    ->selectRaw('SUM(qty * unit_price) as total_price')
+                    ->groupBy('sale_id'),
+                'items',
+                'items.sale_id',
+                '=',
+                'sales.id'
+            )
+            ->orderBy('items.total_price', $direction);
     }
 }

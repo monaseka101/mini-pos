@@ -163,6 +163,7 @@ class SaleResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+
             ->columns([
                 Tables\Columns\TextColumn::make('id')
                     ->label('Sale #')
@@ -179,6 +180,7 @@ class SaleResource extends Resource
 
                 Tables\Columns\TextColumn::make('products')
                     ->label('Products')
+                    ->wrap()
                     ->getStateUsing(fn(Sale $record) => $record->listProducts()),
 
                 Tables\Columns\TextColumn::make('total_qty')
@@ -187,17 +189,11 @@ class SaleResource extends Resource
                     ->getStateUsing(fn(Sale $record) => $record->total_qty),
 
                 Tables\Columns\TextColumn::make('total_price')
+                    // ->sortable()
                     ->money(currency: 'usd')
-                    ->getStateUsing(fn(Sale $record) => $record->total_price)
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query
-                            ->join('sale_items', 'sales.id', '=', 'sale_items.sale_id')
-                            ->groupBy('sales.id')
-                            ->selectRaw('sales.*, SUM((sale_items.unit_price * sale_items.qty) * (1 - COALESCE(sale_items.discount, 0)/100)) as total_price')
-                            ->orderBy('total_price', $direction);
-                    })
                     ->weight(FontWeight::Bold)
-                    // ->badge()
+                    ->sortable(query: fn(Builder $query, string $direction) => Sale::sortByTotalPrice($query, $direction))
+                    ->formatStateUsing(fn($record) => '$' . number_format($record->items->sum(fn($item) => $item->qty * $item->unit_price), 2))
                     ->color('success'),
                 // ->toggleable(),
 
@@ -240,20 +236,12 @@ class SaleResource extends Resource
                                 fn(Builder $query, $date): Builder => $query->whereDate('sale_date', '<=', $date),
                             );
                     }),
-                // Tables\Filters\Filter::make('date_range')
-                // ->form([
-                //     Forms\Components\DatePicker::make('from_date'),
-                //     Forms\Components\DatePicker::make('to_date'),
-                // ])
-                // ->query(function ($query, array $data) {
-                //     return $query
-                //         ->when($data['from_date'], fn($q) => $q->whereDate('sale_date', '>=', $data['from_date']))
-                //         ->when($data['to_date'], fn($q) => $q->whereDate('sale_date', '<=', $data['to_date']));
-                // }),
+
                 Tables\Filters\SelectFilter::make('customer')
                     ->preload()
                     ->searchable()
                     ->relationship('customer', titleAttribute: 'name'),
+                // Filter by total price 
                 Tables\Filters\SelectFilter::make('Seller')
                     ->preload()
                     ->searchable()
@@ -294,7 +282,6 @@ class SaleResource extends Resource
                     })
             ])
             ->bulkActions([
-
                 ExportBulkAction::make()
                     ->color('primary')
                     ->exporter(SaleExporter::class)
@@ -444,6 +431,21 @@ class SaleResource extends Resource
                             ])
                     ])
                     ->collapsible(),
+                Grid::make()
+                    ->schema([
+                        TextEntry::make('print_button')
+                            ->label('')
+                            ->html()
+                            ->state(function ($record) {
+                                return '<div style="text-align: right;">
+                                    <a href="' . route('receipt.print', ['sale' => $record->id]) . '" target="_blank"
+                                        style="background-color:rgb(43, 179, 64); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                                        🖨️ Print Receipt
+                                    </a>
+                                </div>';
+                            })
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 

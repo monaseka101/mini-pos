@@ -88,6 +88,7 @@ class ProductImportResource extends Resource
                             ->displayFormat('d/m/Y')
                             // ->native(false)
                             ->default(now())
+                            ->hidden()
                             ->required(),
                         Forms\Components\RichEditor::make('note')
                             ->columnSpan('full'),
@@ -225,6 +226,7 @@ class ProductImportResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('products')
                     ->label('Products')
+                    ->wrap()
                     ->getStateUsing(function (ProductImport $record) {
                         // Option 1: Simple approach (may cause N+1 queries)
                         return $record->listProducts();
@@ -251,9 +253,7 @@ class ProductImportResource extends Resource
                     ->color('danger')
                     ->money(currency: 'usd')
                     ->getStateUsing(fn(ProductImport $record) => $record->totalPrice())
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return ProductImport::sortByTotalPrice($query, $direction);
-                    })
+                    ->sortable(query: fn(Builder $query, string $direction) => ProductImport::sortByTotalPrice($query, $direction))
                     ->weight(FontWeight::Bold),
 
                 Tables\Columns\TextColumn::make('import_date')

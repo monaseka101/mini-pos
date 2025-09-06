@@ -14,7 +14,13 @@ class ListProductImports extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Create Import')
+                ->url('import-page'),
+            // Actions\Action::make('sd')
+            //     ->color('danger')
+            //     ->url(SaleResource::getUrl('create'))
+            //     ->label('Dumb Sale'),
         ];
     }
 }

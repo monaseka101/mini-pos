@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Exports\CategoryExporter;
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Filament\Resources\CategoryResource\RelationManagers;
 use App\Models\Category;
@@ -9,6 +10,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\ExportBulkAction;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -54,7 +56,6 @@ class CategoryResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->html(),
-
                 Tables\Columns\IconColumn::make('active')
                     ->sortable()
                     ->boolean(),
@@ -77,17 +78,23 @@ class CategoryResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkAction::make('activate')
-                    ->label('Activate Selected')
-                    ->icon('heroicon-m-check-circle')
-                    ->color('success')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-                Tables\Actions\BulkAction::make('deactivate')
-                    ->label('Deactivate Selected')
-                    ->icon('heroicon-m-x-circle')
-                    ->color('danger')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+                ExportBulkAction::make()
+                    ->label('Export Selected Categories')
+                    ->color('primary')
+                    ->exporter(CategoryExporter::class)
             ]);
+        // ->bulkActions([
+        //     Tables\Actions\BulkAction::make('activate')
+        //         ->label('Activate Selected')
+        //         ->icon('heroicon-m-check-circle')
+        //         ->color('success')
+        //         ->action(fn(Collection $records) => $records->each->update(['active' => true])),
+        //     Tables\Actions\BulkAction::make('deactivate')
+        //         ->label('Deactivate Selected')
+        //         ->icon('heroicon-m-x-circle')
+        //         ->color('danger')
+        //         ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+        // ]);
     }
 
     public static function getRelations(): array
