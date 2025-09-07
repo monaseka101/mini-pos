@@ -47,6 +47,7 @@ class AdminPanelProvider extends PanelProvider
             ->emailVerification()
             ->colors([
                 'primary' => Color::Amber,
+                'secondary' => Color::Blue,
             ])
             // ->sidebarFullyCollapsibleOnDesktop()
             ->sidebarWidth('16rem')
@@ -63,9 +64,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             // ->widgets([
-                // Widgets\AccountWidget::class,
-                // Widgets\FilamentInfoWidget::class,
-                // SaleChart::class
+            // Widgets\AccountWidget::class,
+            // Widgets\FilamentInfoWidget::class,
+            // SaleChart::class
             // ])
             ->middleware([
                 // EnsureUserIsActive::class,

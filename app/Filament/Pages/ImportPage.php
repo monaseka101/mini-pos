@@ -25,6 +25,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
+use Awcodes\TableRepeater\Components\TableRepeater;
+use Filament\Forms\Components\Placeholder;
+use Awcodes\TableRepeater\Header;
+use Filament\Support\Enums\Alignment;
 
 
 class ImportPage extends Page implements Tables\Contracts\HasTable, Forms\Contracts\HasForms
@@ -51,63 +55,142 @@ class ImportPage extends Page implements Tables\Contracts\HasTable, Forms\Contra
     {
         return $form
             ->schema([
-                // Customer selection - always visible and required when items exist
-                Forms\Components\Select::make('supplier_id')
-                    ->label('Select Supplier')
-                    ->options(\App\Models\Supplier::pluck('name', 'id'))
-                    ->searchable()
-                    ->placeholder('Select the supplier')
-                    ->visible(fn(callable $get) => !empty($get('items')))
-                    ->required(fn(callable $get) => !empty($get('items')))
-                    ->columnSpanFull(),
-                Forms\Components\Textarea::make('note')
-                    ->label('Note')
-                    ->columnSpanFull()
-                    ->visible(fn(callable $get) => !empty($get('items')))
-                    ->nullable(),
+                Forms\Components\Wizard::make()
+                    ->steps([
+                        Forms\Components\Wizard\Step::make('Supplier & Note')
+                            ->schema([
+                                Forms\Components\Select::make('supplier_id')
+                                    ->label('Select Supplier')
+                                    ->options(\App\Models\Supplier::pluck('name', 'id'))
+                                    ->searchable()
+                                    ->placeholder('Select the supplier')
+                                    ->required()
+                                    ->reactive(),
 
-                Repeater::make('items')
-                    ->reorderable(false)
-                    ->hiddenLabel()
-                    ->schema([
-                        Hidden::make('product_id'),
-                        TextInput::make('name')->disabled(),
-                        TextInput::make('qty')
-                            ->label('Quantity')
-                            ->type('number')
-                            ->default(1)
-                            ->minValue(1)
-                            ->numeric()
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(fn() => $this->updateTotals()),
-                        TextInput::make('stock')
-                            ->label('Currently In Stock')
-                            ->disabled(),
-                        TextInput::make('unit_price')
-                            ->label('Per Unit Price')
-                            ->prefix('$')
-                            ->numeric()
-                            ->required(),
-                        TextInput::make('product_price')
-                            ->label('Current Selling Price')
-                            ->disabled()
-                            ->dehydrated(false) // prevents it from being saved to DB
-                            ->prefix('$')
+                                Forms\Components\Textarea::make('note')
+                                    ->label('Note')
+                                    ->nullable(),
+                            ])
+                            ->columns(1),
+
+                        Forms\Components\Wizard\Step::make('Import Items')
+
+                            ->schema([
+                                TableRepeater::make('items')
+                                    ->headers([
+                                        Header::make('name')->label('Product Name')->width('30%'),
+                                        Header::make('qty')->label('Quantity')->width('100px')->align(Alignment::Center),
+                                        Header::make('stock')->label('Currently In Stock')->width('120px')->align(Alignment::Center),
+                                        Header::make('unit_price')->label('Price Per Unit')->width('120px')->align(Alignment::Center),
+                                        Header::make('product_price')->label('Current Selling Price')->width('140px')->align(Alignment::Center),
+                                        Header::make('Total_price')->label('Total price')->width('120px')->align(Alignment::Center),
+                                        Header::make('actions')->label('')->width('80px'),
+                                    ])
+                                    ->schema([
+                                        Hidden::make('product_id'),
+                                        Placeholder::make('name')
+                                            ->label(false)
+                                            ->inlineLabel()
+                                            ->content(fn($get) => $get('name') ?? '-'),
+                                        TextInput::make('qty')
+                                            ->numeric()
+                                            ->minValue(1)
+                                            ->type('number')
+                                            ->extraAttributes([
+                                                'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                            ])
+                                            ->default(1)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(function ($state, callable $set) {
+                                                if ((int) $state < 1) {
+                                                    $set('qty', 1);
+
+                                                    Notification::make()
+                                                        ->title('Quantity must be at least 1')
+                                                        ->danger()
+                                                        ->send();
+                                                }
+
+                                                $this->updateTotals();
+                                            }),
+                                        Placeholder::make('stock')
+                                            ->label(false)
+                                            ->content(fn($get) => $get('stock') ?? 0),
+                                        TextInput::make('unit_price')
+                                            ->numeric()
+                                            ->extraAttributes([
+                                                'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                            ])
+                                            ->minValue(0)
+                                            ->prefix('$')
+                                            ->required()
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(function ($state, callable $set) {
+                                                if ((float) $state < 0) {
+                                                    $set('unit_price', 0);
+
+                                                    Notification::make()
+                                                        ->title('Unit price cannot be negative')
+                                                        ->danger()
+                                                        ->send();
+                                                }
+                                            }),
+                                        Placeholder::make('product_price')
+                                            ->label(false)
+                                            ->dehydrated(false)
+                                            ->content(fn($get) => '$' . number_format($get('product_price') ?? 0, 2)),
+                                        Placeholder::make('Total_price')
+                                            ->extraAttributes(['class' => 'text-center'])
+                                            ->label(false)
+                                            ->content(
+                                                fn($get) =>
+                                                '$' . number_format(
+                                                    (int)($get('qty') ?? 0) * ($get('unit_price') ?? 0),
+                                                    2
+                                                )
+                                            ),
+                                    ])
+
+                                    ->reorderable(false)
+                                    ->addable(false),
+                                Forms\Components\Grid::make(5)
+                                    ->schema([
+                                        Placeholder::make('empty1')->label(false),
+                                        Placeholder::make('empty2')->label(false),
 
 
+                                        Placeholder::make('empty3')->label(false),
+                                        Placeholder::make('total_qty')
+                                            ->label('ㅤ ㅤ ㅤ ㅤ ㅤ Total Qty')
+                                            ->content(fn($get) => collect($get('items') ?? [])->sum('qty'))
+                                            ->extraAttributes([
+                                                'class' => 'flex flex-col items-center font-bold',
+                                                'style' => 'width:220px;'
+                                            ]),
+
+                                        Placeholder::make('total_amount')
+                                            ->label('Total Amount')
+                                            ->content(fn($get) => '$' . number_format(
+                                                collect($get('items') ?? [])->sum(fn($item) => ($item['qty'] ?? 0) * ($item['unit_price'] ?? 0)),
+                                                2
+
+                                            ))
+                                            ->extraAttributes([
+                                                'class' => 'flex flex-col items-left font-bold',
+                                                'style' => 'width:350px;' // column layout, right-aligned
+                                            ]),
+                                    ])
+                            ])
+                            ->columns(1),
                     ])
-                    ->columns(5)
-                    ->default([])
-                    ->addable(false)
-                    ->deletable(true)
-                    ->deleteAction(
-                        fn($action) => $action->after(fn() => $this->updateTotals())
-                    ),
+                    ->statePath('formData')
+
             ])
-            ->statePath('formData')
+
             ->model(null)
             ->extraAttributes(['class' => 'space-y-4']);
     }
+
 
 
     public function updateTotals(): void
@@ -242,19 +325,22 @@ class ImportPage extends Page implements Tables\Contracts\HasTable, Forms\Contra
 
 
                     TextColumn::make('description')
-                        ->html()
-                        ->limit(50)
-                        ->color('gray')
-                        ->wrap(),
-                    // TextColumn::make('brand.name')
-                    //     ->searchable()
-                    //     ->label('Brand')
-                    //     ->badge()
-                    //     ->color(color: 'info'),
-                    // TextColumn::make('category.name')
-                    //     ->badge()
-                    //     ->color('info')
-                    //     ->searchable(),
+                        ->label('Description')
+                        ->limit(100)
+                        ->wrap()
+                        ->extraAttributes([
+                            'style' => 'min-height:50px; display:block; overflow:hidden;'
+                        ])
+                        ->formatStateUsing(fn($state) => strip_tags($state)),
+                    TextColumn::make('brand.name')
+                        ->searchable()
+                        ->label('Brand')
+                        ->badge()
+                        ->color(color: 'info'),
+                    TextColumn::make('category.name')
+                        ->badge()
+                        ->color('info')
+                        ->searchable(),
 
 
                     TextColumn::make('price')
@@ -278,7 +364,10 @@ class ImportPage extends Page implements Tables\Contracts\HasTable, Forms\Contra
                     ->icon('heroicon-s-arrow-down-tray')
                     ->button()
                     ->color('primary')
-                    ->action(fn($record) => $this->addToCart($record)),
+                    ->action(fn(Product $record) => $this->addToCart($record))
+                    ->hidden(fn(Product $record) => collect($this->formData['items'] ?? [])
+                        ->pluck('product_id')
+                        ->contains($record->id)),
             ])
             ->contentGrid([
                 'sm' => 1,

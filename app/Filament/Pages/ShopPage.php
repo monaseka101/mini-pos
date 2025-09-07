@@ -7,11 +7,14 @@ namespace App\Filament\Pages;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use Awcodes\TableRepeater\Components\TableRepeater;
+use Awcodes\TableRepeater\Header;
 use Filament\Pages\Page;
 use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\ImageColumn;
@@ -21,7 +24,10 @@ use Filament\Tables\Table;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Alignment;
 use Filament\Tables\Filters\Filter;
+use Filament\Forms\Components\Wizard;
+use Filament\Forms\Components\Wizard\Step;
 
 class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contracts\HasForms
 {
@@ -47,59 +53,111 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
     {
         return $form
             ->schema([
-                // Customer selection - always visible and required when items exist
-                Forms\Components\Select::make('customer_id')
-                    ->label('Select Customer')
-                    ->options(\App\Models\Customer::pluck('name', 'id'))
-                    ->searchable()
-                    ->placeholder('Select a customer')
-                    ->visible(fn(callable $get) => !empty($get('items')))
-                    ->required(fn(callable $get) => !empty($get('items')))
-                    ->columnSpanFull(),
+                Wizard::make([
+                    // Step 1: Add products to cart
+                    Step::make('Cart Items')
+                        ->schema([
+                            TableRepeater::make('items')
+                                ->headers([
+                                    Header::make('name')->label('Product Name')->width('30%'),
+                                    Header::make('qty')->label('Qty')->width('100px')->align(Alignment::Center),
+                                    Header::make('stock')->label('In Stock')->width('100px')->align(Alignment::Center),
+                                    Header::make('unit_price')->label('Unit Price')->width('120px')->align(Alignment::Center),
+                                    Header::make('discount')->label('Discount')->width('120px')->align(Alignment::Center),
+                                    Header::make('subtotal')->label('Subtotal')->width('120px')->align(Alignment::Center),
+                                    Header::make('actions')->label('')->width('80px'),
+                                ])
+                                ->schema([
+                                    Hidden::make('product_id')->default(null),
+                                    Placeholder::make('name')
+                                        ->label('Name:')
+                                        ->inlineLabel()
+                                        ->content(fn($get) => $get('name') ?? '-'),
+                                    TextInput::make('qty')
+                                        ->numeric()
+                                        ->extraAttributes([
+                                            'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                        ])
+                                        ->default(1)
+                                        ->minValue(1)
+                                        ->maxValue(fn($get) => (int) ($get('stock') ?? 1))
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function ($state, callable $set, $get) {
+                                            $stock = (int) ($get('stock') ?? 1);
 
+                                            if ($state < 1) {
+                                                $set('qty', 1);
+                                                Notification::make()
+                                                    ->title('Quantity too low')
+                                                    ->body('Quantity cannot be less than 1.')
+                                                    ->warning()
+                                                    ->send();
+                                            } elseif ($state > $stock) {
+                                                $set('qty', $stock);
+                                                Notification::make()
+                                                    ->title('Insufficient stock')
+                                                    ->body("Only {$stock} units available for this product.")
+                                                    ->warning()
+                                                    ->send();
+                                            }
 
-                Repeater::make('items')
-                    ->reorderable(false)
-                    ->hiddenLabel()
-                    ->schema([
-                        Hidden::make('product_id'),
-                        TextInput::make('name')->disabled(),
-                        TextInput::make('qty')
-                            ->type('number')
-                            ->default(1)
-                            ->minValue(1)
-                            ->numeric()
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(fn() => $this->updateTotals()),
-                        TextInput::make('stock')
-                            ->label('In Stock')
-                            ->disabled(),
-                        TextInput::make('unit_price')
-                            ->label('Unit Price')
-                            ->prefix('$')
-                            ->numeric()
-                            ->step(0.01)
-                            ->disabled(),
-                        TextInput::make('discount')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0)
-                            ->maxValue(100)
-                            ->suffix('%')
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(fn() => $this->updateTotals()),
-                    ])
-                    ->columns(5)
-                    ->default([])
-                    ->addable(false)
-                    ->deletable(true)
-                    ->deleteAction(
-                        fn($action) => $action->after(fn() => $this->updateTotals())
-                    ),
+                                            $this->updateTotals();
+                                        }),
+                                    Placeholder::make('stock')
+                                        ->label(false)
+                                        ->content(fn($get) => $get('stock') ?? 0),
+                                    Placeholder::make('unit_price')
+                                        ->label(false)
+                                        ->content(fn($get) => '$' . number_format((float) ($get('unit_price') ?? 0), 2)),
+                                    TextInput::make('discount')
+                                        ->numeric()
+                                        ->extraAttributes([
+                                            'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                        ])
+                                        ->default(0)
+                                        ->minValue(0)
+                                        ->maxValue(100)
+                                        ->suffix('%')
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function ($state, callable $set) {
+                                            if ($state < 0) $set('discount', 0);
+                                            elseif ($state > 100) $set('discount', 100);
+                                            $this->updateTotals();
+                                        }),
+                                    Placeholder::make('subtotal')
+                                        ->extraAttributes(['class' => 'text-center'])
+                                        ->label(false)
+                                        ->content(fn($get) =>
+                                        '$' . number_format(
+                                            ($get('qty') ?? 0) * ($get('unit_price') ?? 0) * (1 - ($get('discount') ?? 0) / 100),
+                                            2
+                                        )),
+
+                                ])
+                                ->deletable(true)
+                                ->addable(false)
+                                ->reorderable(false)
+                                ->streamlined(),
+                        ]),
+
+                    // Step 2: Select customer and checkout
+                    Step::make('Customer & Checkout')
+                        ->schema([
+                            Forms\Components\Select::make('customer_id')
+                                ->label('Select Customer')
+                                ->options(\App\Models\Customer::pluck('name', 'id'))
+                                ->searchable()
+                                ->required()
+                                ->visible(fn($get) => !empty($get('items'))),
+                            Placeholder::make('total')
+                                ->label('Total Amount')
+                                ->content(fn() => '$' . number_format($this->getTotalAmount(), 2)),
+                        ])
+                ])
             ])
+
             ->statePath('formData')
-            ->model(null)
-            ->extraAttributes(['class' => 'space-y-4']);
+            ->model(null);
     }
 
 
@@ -228,29 +286,33 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                         ->height(100)
                         ->defaultImageUrl(fn($record) => \App\Helpers\Util::getDefaultAvatar($record->name)),
 
-
                     TextColumn::make('name')
                         ->searchable()
-                        ->weight('bold')
+                        ->weight('Normal') // only this column bold
                         ->size('md')
-                        ->limit(30),
-
+                        ->limit(30)
+                        ->extraAttributes(['class' => 'whitespace-normal']),
 
                     TextColumn::make('description')
-                        ->html()
-                        ->limit(50)
-                        ->color('gray')
-                        ->wrap(),
+                        ->label('Description')
+                        ->limit(100)
+                        ->wrap()
+                        ->extraAttributes([
+                            'style' => 'min-height:50px; display:block; overflow:hidden;'
+                        ])
+                        ->formatStateUsing(fn($state) => strip_tags($state)),
+
+
+
                     TextColumn::make('brand.name')
-                        ->searchable()
-                        ->label('Brand')
                         ->badge()
-                        ->color(color: 'info'),
+                        ->color('info')
+                        ->weight('normal'),
+
                     TextColumn::make('category.name')
                         ->badge()
                         ->color('info')
-                        ->searchable(),
-
+                        ->weight('normal'),
 
                     TextColumn::make('price')
                         ->formatStateUsing(fn($state) => '$' . number_format($state, 2))
@@ -258,30 +320,49 @@ class ShopPage extends Page implements Tables\Contracts\HasTable, Forms\Contract
                         ->weight('bold')
                         ->size('md'),
 
-
                     TextColumn::make('stock')
                         ->badge()
                         ->color(fn($state) => $state > 0 ? 'success' : 'danger')
-                        ->formatStateUsing(fn($state) => $state > 0 ? "In Stock: {$state}" : 'Out of Stock'),
+                        ->formatStateUsing(fn($state) => $state > 0 ? "In Stock: {$state}" : 'Out of Stock')
+                        ->weight('normal'),
+
+                    // Add-to-sale button inside the stack
+                    TextColumn::make('actions')
+                        ->label('')
+                        ->formatStateUsing(fn($record) => view('components.add-to-cart-button', ['record' => $record]))
+                        ->html()
+
+
                 ])
             ])
+
             ->actions([
                 Tables\Actions\Action::make('addToCart')
                     ->label('Add to Sale')
                     ->icon('heroicon-o-shopping-cart')
                     ->button()
                     ->color('primary')
-                    ->action(fn($record) => $this->addToCart($record)),
+                    ->action(fn(Product $record) => $this->addToCart($record))
+                    ->hidden(fn(Product $record) => collect($this->formData['items'] ?? [])
+                        ->pluck('product_id')
+                        ->contains($record->id)),
             ])
+
             ->filters([
                 Filter::make('price')
                     ->form([
                         Forms\Components\TextInput::make('min_price')
                             ->numeric()
+                            ->extraAttributes([
+                                'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                            ])
                             ->label('Min Price')
                             ->prefix('$'),
                         Forms\Components\TextInput::make('max_price')
                             ->numeric()
+                            ->extraAttributes([
+                                'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                            ])
                             ->label('Max Price')
                             ->prefix('$'),
                     ])

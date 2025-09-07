@@ -38,6 +38,9 @@ class ProductsRelationManager extends RelationManager
                                 ->label('Price')
                                 ->required()
                                 ->numeric()
+                                ->extraAttributes([
+                                    'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                ])
                                 ->prefix('$')
                                 ->placeholder('0.00')
                                 ->minValue(0.01),
@@ -61,6 +64,9 @@ class ProductsRelationManager extends RelationManager
                                 ->label('Stock Security')
                                 ->required()
                                 ->numeric()
+                                ->extraAttributes([
+                                    'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                ])
                                 ->minValue(1)
                                 ->helperText('Minimum stock level before warning'),
                         ]),

@@ -72,6 +72,9 @@ class ProductResource extends Resource
                                     ->label('Price')
                                     ->required()
                                     ->numeric()
+                                    ->extraAttributes([
+                                        'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                    ])
                                     ->prefix('$')
                                     ->placeholder('0.00')
                                     ->minValue(0.01),
@@ -108,6 +111,9 @@ class ProductResource extends Resource
                                 Forms\Components\TextInput::make('stock_security')
                                     ->required()
                                     ->numeric()
+                                    ->extraAttributes([
+                                        'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                                    ])
                                     ->minValue(1)
 
                             ]),
@@ -387,7 +393,6 @@ class ProductResource extends Resource
                         InfoGrid::make(1)->schema([
                             TextEntry::make('view_full_import_history')
                                 ->default(fn($record) => $record->productimportItems?->take(5) ?? collect())
-
                                 ->label('')
                                 ->html()
                                 ->state(fn($record) => '

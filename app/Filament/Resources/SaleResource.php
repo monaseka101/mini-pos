@@ -122,6 +122,9 @@ class SaleResource extends Resource
                 Forms\Components\TextInput::make('qty')
                     ->label('Quantity')
                     ->numeric()
+                    ->extraAttributes([
+                        'onkeydown' => "if(['e','E','+','-'].includes(event.key)) event.preventDefault();",
+                    ])
                     ->default(1)
                     ->minValue(1)
                     ->maxValue(fn(Get $get) => $get('available_stock'))
@@ -373,7 +376,7 @@ class SaleResource extends Resource
                         RepeatableEntry::make('items')
                             ->schema([
                                 Split::make([
-                                    Grid::make(5)
+                                    Grid::make(7)
                                         ->schema([
                                             TextEntry::make('product.name')
                                                 ->label('Product')
@@ -383,6 +386,14 @@ class SaleResource extends Resource
                                                 ->label('Quantity')
                                                 ->badge()
                                                 ->color('primary'),
+                                            TextEntry::make('product.brand.name')
+                                                ->label('Brand')
+                                                ->badge()
+                                                ->color('success'),
+                                            TextEntry::make('product.category.name')
+                                                ->label('Category')
+                                                ->badge()
+                                                ->color('success'),
                                             TextEntry::make('discount')
                                                 ->getStateUsing(fn($record) => $record->discount ?? 0)
                                                 ->suffix('%')

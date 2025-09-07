@@ -8,6 +8,8 @@ use App\Filament\Resources\BrandResource\RelationManagers\ProductsRelationManage
 use App\Helpers\Util;
 use App\Models\Brand;
 use App\Models\User;
+use Filament\Tables\Actions\ExportBulkAction;
+use App\Filament\Exports\BrandExporter;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Infolists\Infolist;
@@ -116,16 +118,11 @@ class BrandResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkAction::make('activate')
-                    ->label('Activate Selected')
-                    ->icon('heroicon-m-check-circle')
-                    ->color('success')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => true])),
-                Tables\Actions\BulkAction::make('deactivate')
-                    ->label('Deactivate Selected')
-                    ->icon('heroicon-m-x-circle')
-                    ->color('danger')
-                    ->action(fn(Collection $records) => $records->each->update(['active' => false])),
+                ExportBulkAction::make()
+                    ->label('Export Selected Categories')
+                    ->color('primary')
+                    ->exporter(BrandExporter::class)
+
             ])
             ->defaultSort('active', 'desc');
     }
